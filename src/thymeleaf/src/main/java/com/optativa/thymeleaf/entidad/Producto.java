@@ -1,13 +1,20 @@
 package com.optativa.thymeleaf.entidad;
 
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Positive;
 /**
  * https://spring.io/guides/gs/validating-form-input
  */
+@Entity
 public class Producto {
 		//añadios ID
-		private int id;
+		@Id
+		@GeneratedValue(strategy =GenerationType.AUTO)
+		private Integer id;
 		@NotBlank(message = "Nombre no puede estar en blanco")
 		private String nombre;
 		@Positive(message = "El precio tiene que ser positivo")
@@ -51,11 +58,11 @@ public class Producto {
 			this.categoria = categoria;
 		}
 
-		public int getId() {
+		public Integer getId() {
 			return id;
 		}
 
-		public void setId(int id) {
+		public void setId(Integer id) {
 			this.id = id;
 		}
 

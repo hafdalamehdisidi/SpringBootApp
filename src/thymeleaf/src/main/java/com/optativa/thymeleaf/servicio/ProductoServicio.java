@@ -11,3 +11,4 @@ public interface ProductoServicio {
 	void actualizarProducto(Producto producto);
 	void eliminarProducto(int id);
 }
+

@@ -1,5 +1,1385 @@
-<html>
-	<body>
-		<h1>Hola Mundo</h1>
-	</body>
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Checklist de recomendaciones de desarrollo seguro</title>
+
+  <!-- Bootstrap 5 -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <!-- Bootstrap Icons -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+
+  <style>
+    body { background: #f8f9fa; }
+    .code-badge { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+    .muted { color: #6c757d; }
+    .tag { cursor: default; }
+    .tagbar .btn { margin: .15rem .2rem .15rem 0; }
+    .tagbar .btn.active { font-weight: 600; }
+    .col-tags { min-width: 280px; }
+    .badge-soft { background: rgba(13,110,253,.10); color: #0d6efd; border: 1px solid rgba(13,110,253,.20); }
+    .top-actions .btn { white-space: nowrap; }
+  </style>
+</head>
+
+<body>
+<header class="bg-dark text-white py-4">
+  <div class="container">
+    <div class="d-flex flex-wrap gap-2 align-items-center justify-content-between">
+      <div>
+        <h1 class="h3 mb-1">Recomendaciones de desarrollo seguro</h1>
+        <p class="mb-0 text-white-50">Checklist de controles (Bootstrap + etiquetas Spring Boot)</p>
+      </div>
+
+      <div class="top-actions d-flex flex-wrap gap-2">
+        <a class="btn btn-outline-light btn-sm"
+           href="https://angeles.ccn-cert.cni.es/es/docman/documentos-publicos/informes-de-buenas-practicas/390-ccn-cert-bp-28-recomendaciones-sobre-desarrollo-seguro/file"
+           target="_blank" rel="noopener noreferrer">
+          <i class="bi bi-shield-check me-1" aria-hidden="true"></i>
+          Documento CCN-CERT BP/28
+        </a>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main class="container my-4">
+  <div class="row g-3 align-items-center mb-3">
+    <div class="col-12 col-lg-8">
+      <div class="input-group">
+        <span class="input-group-text">Filtrar</span>
+        <input id="filterInput" type="search" class="form-control"
+               placeholder="Ej.: sesión, XSS, hash, TLS, CSRF, JWT, @Valid, Actuator, CORS, headers...">
+        <button id="clearBtn" class="btn btn-outline-secondary" type="button">Limpiar</button>
+      </div>
+      <div class="form-text">
+        Filtra por código (p.ej. <span class="code-badge">AUT-01</span>), por texto o por etiqueta (p.ej. <span class="badge badge-soft tag">Spring Security</span>).
+      </div>
+    </div>
+    <div class="col-12 col-lg-4 text-lg-end">
+      <span class="badge text-bg-primary" id="countBadge">0 controles</span>
+    </div>
+  </div>
+
+  <!-- Barra de etiquetas -->
+  <div class="card mb-3">
+    <div class="card-body">
+      <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
+        <div class="fw-semibold">
+          <i class="bi bi-tags me-1" aria-hidden="true"></i>
+          Etiquetas Spring Boot
+        </div>
+        <button class="btn btn-sm btn-outline-secondary" id="resetTagsBtn" type="button">
+          <i class="bi bi-x-circle me-1" aria-hidden="true"></i>
+          Quitar filtro de etiquetas
+        </button>
+      </div>
+      <div class="tagbar mt-2" id="tagBar"></div>
+      <div class="small muted mt-1">
+        Tip: puedes combinar <strong>buscador + etiqueta</strong>. (Ej.: etiqueta “Spring Security” + buscar “CSRF”).
+      </div>
+    </div>
+  </div>
+
+  <div class="accordion" id="accChecklist">
+
+    <!-- ARQUITECTURA -->
+    <div class="accordion-item">
+      <h2 class="accordion-header" id="h-arq">
+        <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#c-arq"
+                aria-expanded="true" aria-controls="c-arq">Arquitectura</button>
+      </h2>
+      <div id="c-arq" class="accordion-collapse collapse show" aria-labelledby="h-arq" data-bs-parent="#accChecklist">
+        <div class="accordion-body">
+          <div class="table-responsive">
+            <table class="table table-sm table-striped align-middle m-0 controls-table">
+              <thead>
+              <tr>
+                <th style="width: 120px;">ID</th>
+                <th style="width: 260px;">Control</th>
+                <th>Descripción</th>
+                <th class="col-tags">Spring Boot</th>
+              </tr>
+              </thead>
+              <tbody>
+              <tr data-tags="seguridad-red,reverse-proxy,headers,ssl-tls">
+                <td><span class="badge text-bg-secondary code-badge">ARQ-06</span></td>
+                <td>Seguridad perimetral lógica</td>
+                <td>Firewalls, IDS o segmentación de red.</td>
+                <td>
+                  <span class="badge badge-soft tag">Spring Boot detrás de proxy</span>
+                  <span class="badge badge-soft tag">TLS/HTTPS</span>
+                  <span class="badge badge-soft tag">Headers</span>
+                </td>
+              </tr>
+
+              <tr data-tags="perfiles,config,external-config,backup">
+                <td><span class="badge text-bg-secondary code-badge">ARQ-07</span></td>
+                <td>Asegurar datos sensibles</td>
+                <td>Proteger datos entre entornos con segregación física/lógica y copias de respaldo.</td>
+                <td>
+                  <span class="badge badge-soft tag">Profiles (dev/prod)</span>
+                  <span class="badge badge-soft tag">Config externa</span>
+                  <span class="badge badge-soft tag">Backups</span>
+                </td>
+              </tr>
+
+              <tr data-tags="maven,gradle,dependencias,sbom,java">
+                <td><span class="badge text-bg-secondary code-badge">ARQ-08</span></td>
+                <td>Seguridad del lenguaje</td>
+                <td>Usar versión reciente; revisar seguridad de paquetes/librerías instaladas.</td>
+                <td>
+                  <span class="badge badge-soft tag">Maven/Gradle</span>
+                  <span class="badge badge-soft tag">Dependencias</span>
+                  <span class="badge badge-soft tag">Java LTS</span>
+                </td>
+              </tr>
+
+              <tr data-tags="actuator,observabilidad,perfiles,config">
+                <td><span class="badge text-bg-secondary code-badge">ARQ-09</span></td>
+                <td>Desactivar depuración</td>
+                <td>Especialmente en Producción para evitar fugas de información.</td>
+                <td>
+                  <span class="badge badge-soft tag">Profiles</span>
+                  <span class="badge badge-soft tag">Actuator seguro</span>
+                  <span class="badge badge-soft tag">Logging</span>
+                </td>
+              </tr>
+
+              <tr data-tags="testing,quality,static-analysis,ci-cd">
+                <td><span class="badge text-bg-secondary code-badge">ARQ-10</span></td>
+                <td>Entorno de desarrollo</td>
+                <td>Herramientas en el IDE para análisis semántico y controles básicos de seguridad.</td>
+                <td>
+                  <span class="badge badge-soft tag">Tests</span>
+                  <span class="badge badge-soft tag">CI/CD</span>
+                  <span class="badge badge-soft tag">Análisis estático</span>
+                </td>
+              </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- AUTENTICACIÓN -->
+    <div class="accordion-item">
+      <h2 class="accordion-header" id="h-aut">
+        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#c-aut"
+                aria-expanded="false" aria-controls="c-aut">Autenticación</button>
+      </h2>
+      <div id="c-aut" class="accordion-collapse collapse" aria-labelledby="h-aut" data-bs-parent="#accChecklist">
+        <div class="accordion-body">
+          <div class="table-responsive">
+            <table class="table table-sm table-striped align-middle m-0 controls-table">
+              <thead>
+              <tr>
+                <th style="width: 120px;">ID</th>
+                <th style="width: 260px;">Control</th>
+                <th>Descripción</th>
+                <th class="col-tags">Spring Boot</th>
+              </tr>
+              </thead>
+              <tbody>
+              <tr data-tags="spring-security,password-encoder,hash,bcrypt">
+                <td><span class="badge text-bg-secondary code-badge">AUT-01</span></td>
+                <td>Hash para contraseñas</td>
+                <td>No almacenar contraseñas en claro.</td>
+                <td>
+                  <span class="badge badge-soft tag">Spring Security</span>
+                  <span class="badge badge-soft tag">PasswordEncoder</span>
+                  <span class="badge badge-soft tag">BCrypt</span>
+                </td>
+              </tr>
+
+              <tr data-tags="spring-security,logout,sesiones">
+                <td><span class="badge text-bg-secondary code-badge">AUT-02</span></td>
+                <td>Botón de desconexión</td>
+                <td>Enlace de logout; expirar sesión al desconectar y por inactividad razonable.</td>
+                <td>
+                  <span class="badge badge-soft tag">Spring Security</span>
+                  <span class="badge badge-soft tag">logout()</span>
+                  <span class="badge badge-soft tag">Session timeout</span>
+                </td>
+              </tr>
+
+              <tr data-tags="spring-security,oauth2,oidc,jwt,urls">
+                <td><span class="badge text-bg-secondary code-badge">AUT-03</span></td>
+                <td>No exponer credenciales</td>
+                <td>No incluir credenciales en la URL.</td>
+                <td>
+                  <span class="badge badge-soft tag">OAuth2/OIDC</span>
+                  <span class="badge badge-soft tag">JWT (header)</span>
+                  <span class="badge badge-soft tag">Best practices</span>
+                </td>
+              </tr>
+
+              <tr data-tags="spring-mvc,restcontroller,post,csrf">
+                <td><span class="badge text-bg-secondary code-badge">AUT-04</span></td>
+                <td>Usar POST</td>
+                <td>En formularios, usar POST para envío de información.</td>
+                <td>
+                  <span class="badge badge-soft tag">@PostMapping</span>
+                  <span class="badge badge-soft tag">Spring MVC</span>
+                  <span class="badge badge-soft tag">CSRF</span>
+                </td>
+              </tr>
+
+              <tr data-tags="spring-security,mfa,oauth2,oidc">
+                <td><span class="badge text-bg-secondary code-badge">AUT-05</span></td>
+                <td>Autenticación multi-factor</td>
+                <td>MFA para apps sensibles; 2FA en funciones críticas.</td>
+                <td>
+                  <span class="badge badge-soft tag">OAuth2/OIDC</span>
+                  <span class="badge badge-soft tag">MFA (IdP)</span>
+                  <span class="badge badge-soft tag">Spring Security</span>
+                </td>
+              </tr>
+
+              <tr data-tags="spring-security,rate-limit,lockout,bruteforce">
+                <td><span class="badge text-bg-secondary code-badge">AUT-06</span></td>
+                <td>Bloqueo de cuentas</td>
+                <td>Bloquear tras 3 intentos fallidos + mecanismo de desbloqueo con admin.</td>
+                <td>
+                  <span class="badge badge-soft tag">Login throttling</span>
+                  <span class="badge badge-soft tag">Rate limit</span>
+                  <span class="badge badge-soft tag">Spring Security</span>
+                </td>
+              </tr>
+
+              <tr data-tags="captcha,bruteforce,rate-limit">
+                <td><span class="badge text-bg-secondary code-badge">AUT-07</span></td>
+                <td>Uso de CAPTCHA</td>
+                <td>Mitigar fuerza bruta en apps expuestas a Internet.</td>
+                <td>
+                  <span class="badge badge-soft tag">CAPTCHA</span>
+                  <span class="badge badge-soft tag">Rate limit</span>
+                </td>
+              </tr>
+
+              <tr data-tags="spring-security,errores,enumeracion,auth">
+                <td><span class="badge text-bg-secondary code-badge">AUT-08</span></td>
+                <td>Prevenir enumeración</td>
+                <td>Mensajes genéricos y tiempos de respuesta homogéneos.</td>
+                <td>
+                  <span class="badge badge-soft tag">AuthenticationFailureHandler</span>
+                  <span class="badge badge-soft tag">Mensajes genéricos</span>
+                </td>
+              </tr>
+
+              <tr data-tags="frontend,forms,seguridad-ui">
+                <td><span class="badge text-bg-secondary code-badge">AUT-09</span></td>
+                <td>Desactivar autocompletar</td>
+                <td>Desactivar “autocomplete” en el campo de contraseña.</td>
+                <td>
+                  <span class="badge badge-soft tag">HTML forms</span>
+                  <span class="badge badge-soft tag">UI security</span>
+                </td>
+              </tr>
+
+              <tr data-tags="password-policy,spring-security">
+                <td><span class="badge text-bg-secondary code-badge">AUT-10</span></td>
+                <td>Complejidad de contraseña</td>
+                <td>Mínimo 8; al menos 3 entre mayúscula/minúscula/número/especial.</td>
+                <td>
+                  <span class="badge badge-soft tag">Política de password</span>
+                  <span class="badge badge-soft tag">Spring Security</span>
+                </td>
+              </tr>
+
+              <tr data-tags="cookies,sesiones,spring-security">
+                <td><span class="badge text-bg-secondary code-badge">AUT-11</span></td>
+                <td>No almacenar cookie</td>
+                <td>No persistir cookie de autenticación ni reutilizarla para otros fines.</td>
+                <td>
+                  <span class="badge badge-soft tag">Cookies</span>
+                  <span class="badge badge-soft tag">Session cookie</span>
+                  <span class="badge badge-soft tag">Spring Security</span>
+                </td>
+              </tr>
+
+              <tr data-tags="audit,logging,spring-security,observabilidad">
+                <td><span class="badge text-bg-secondary code-badge">AUT-12</span></td>
+                <td>Registrar accesos</td>
+                <td>Registrar intentos de acceso (éxito/cancelada/bloqueada).</td>
+                <td>
+                  <span class="badge badge-soft tag">Audit logging</span>
+                  <span class="badge badge-soft tag">Spring Security events</span>
+                  <span class="badge badge-soft tag">Actuator</span>
+                </td>
+              </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- AUTORIZACIÓN -->
+    <div class="accordion-item">
+      <h2 class="accordion-header" id="h-atz">
+        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#c-atz"
+                aria-expanded="false" aria-controls="c-atz">Autorización</button>
+      </h2>
+      <div id="c-atz" class="accordion-collapse collapse" aria-labelledby="h-atz" data-bs-parent="#accChecklist">
+        <div class="accordion-body">
+          <div class="table-responsive">
+            <table class="table table-sm table-striped align-middle m-0 controls-table">
+              <thead>
+              <tr>
+                <th style="width: 120px;">ID</th>
+                <th style="width: 260px;">Control</th>
+                <th>Descripción</th>
+                <th class="col-tags">Spring Boot</th>
+              </tr>
+              </thead>
+              <tbody>
+              <tr data-tags="spring-security,rbac,roles,method-security">
+                <td><span class="badge text-bg-secondary code-badge">ATZ-01</span></td>
+                <td>Mínimo privilegio</td>
+                <td>Acceso solo a funciones/datos necesarios.</td>
+                <td>
+                  <span class="badge badge-soft tag">Spring Security</span>
+                  <span class="badge badge-soft tag">RBAC</span>
+                  <span class="badge badge-soft tag">Method Security</span>
+                </td>
+              </tr>
+
+              <tr data-tags="spring-security,roles,authorities">
+                <td><span class="badge text-bg-secondary code-badge">ATZ-02</span></td>
+                <td>Roles y privilegios</td>
+                <td>Permisos a roles, no directamente a usuarios.</td>
+                <td>
+                  <span class="badge badge-soft tag">GrantedAuthority</span>
+                  <span class="badge badge-soft tag">Roles</span>
+                  <span class="badge badge-soft tag">Spring Security</span>
+                </td>
+              </tr>
+
+              <tr data-tags="spring-security,idor,authorization,rest">
+                <td><span class="badge text-bg-secondary code-badge">ATZ-03</span></td>
+                <td>Protección por autorización</td>
+                <td>Evitar acceso a datos/objetos ajenos (IDOR / manipulación de parámetros).</td>
+                <td>
+                  <span class="badge badge-soft tag">@PreAuthorize</span>
+                  <span class="badge badge-soft tag">Ownership checks</span>
+                  <span class="badge badge-soft tag">Spring Security</span>
+                </td>
+              </tr>
+
+              <tr data-tags="static-content,hardening,git,paths">
+                <td><span class="badge text-bg-secondary code-badge">ATZ-04</span></td>
+                <td>Navegación por directorios</td>
+                <td>Deshabilitar directory listing salvo necesidad deliberada.</td>
+                <td>
+                  <span class="badge badge-soft tag">Hardening</span>
+                  <span class="badge badge-soft tag">Evitar .git expuesto</span>
+                </td>
+              </tr>
+
+              <tr data-tags="spring-security,server-side,filters">
+                <td><span class="badge text-bg-secondary code-badge">ATZ-05</span></td>
+                <td>Control de acceso en servidor</td>
+                <td>Aplicar reglas en el lado servidor.</td>
+                <td>
+                  <span class="badge badge-soft tag">SecurityFilterChain</span>
+                  <span class="badge badge-soft tag">Spring Security</span>
+                </td>
+              </tr>
+
+              <tr data-tags="spring-security,claims,jwt,policy">
+                <td><span class="badge text-bg-secondary code-badge">ATZ-06</span></td>
+                <td>Manipulación segura de info usuario</td>
+                <td>Atributos/políticas no manipulables por usuario sin autorización explícita.</td>
+                <td>
+                  <span class="badge badge-soft tag">JWT claims</span>
+                  <span class="badge badge-soft tag">Server-side checks</span>
+                </td>
+              </tr>
+
+              <tr data-tags="spring-security,policy,centralized-authz">
+                <td><span class="badge text-bg-secondary code-badge">ATZ-07</span></td>
+                <td>Mecanismo centralizado</td>
+                <td>Centralizar autorización para cada recurso protegido.</td>
+                <td>
+                  <span class="badge badge-soft tag">Method Security</span>
+                  <span class="badge badge-soft tag">SecurityFilterChain</span>
+                </td>
+              </tr>
+
+              <tr data-tags="csrf,spring-security,transactions">
+                <td><span class="badge text-bg-secondary code-badge">ATZ-08</span></td>
+                <td>Tokens anti-CSRF</td>
+                <td>Tokens aleatorios fuertes o mecanismo equivalente.</td>
+                <td>
+                  <span class="badge badge-soft tag">CSRF</span>
+                  <span class="badge badge-soft tag">Spring Security</span>
+                </td>
+              </tr>
+
+              <tr data-tags="audit,logging,security-events">
+                <td><span class="badge text-bg-secondary code-badge">ATZ-09</span></td>
+                <td>Registrar control de acceso</td>
+                <td>Registrar operaciones sobre datos sensibles, incluso si son denegadas.</td>
+                <td>
+                  <span class="badge badge-soft tag">Audit logging</span>
+                  <span class="badge badge-soft tag">Security events</span>
+                </td>
+              </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- GESTIÓN DE SESIONES -->
+    <div class="accordion-item">
+      <h2 class="accordion-header" id="h-ses">
+        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#c-ses"
+                aria-expanded="false" aria-controls="c-ses">Gestión de sesiones</button>
+      </h2>
+      <div id="c-ses" class="accordion-collapse collapse" aria-labelledby="h-ses" data-bs-parent="#accChecklist">
+        <div class="accordion-body">
+          <div class="table-responsive">
+            <table class="table table-sm table-striped align-middle m-0 controls-table">
+              <thead>
+              <tr>
+                <th style="width: 120px;">ID</th>
+                <th style="width: 260px;">Control</th>
+                <th>Descripción</th>
+                <th class="col-tags">Spring Boot</th>
+              </tr>
+              </thead>
+              <tbody>
+              <tr data-tags="headers,spring-security,hsts,cache-control">
+                <td><span class="badge text-bg-secondary code-badge">SES-01</span></td>
+                <td>Cabeceras seguras</td>
+                <td>Cache-Control, Strict-Transport-Security, etc.</td>
+                <td>
+                  <span class="badge badge-soft tag">Spring Security Headers</span>
+                  <span class="badge badge-soft tag">HSTS</span>
+                  <span class="badge badge-soft tag">Cache-Control</span>
+                </td>
+              </tr>
+
+              <tr data-tags="spring-security,logout,sessions">
+                <td><span class="badge text-bg-secondary code-badge">SES-02</span></td>
+                <td>Invalidación</td>
+                <td>Invalidar sesiones al cerrar sesión.</td>
+                <td>
+                  <span class="badge badge-soft tag">logout()</span>
+                  <span class="badge badge-soft tag">Session invalidation</span>
+                </td>
+              </tr>
+
+              <tr data-tags="session-timeout,config,properties">
+                <td><span class="badge text-bg-secondary code-badge">SES-03</span></td>
+                <td>Expiración</td>
+                <td>Expirar por inactividad.</td>
+                <td>
+                  <span class="badge badge-soft tag">server.servlet.session.timeout</span>
+                  <span class="badge badge-soft tag">Properties</span>
+                </td>
+              </tr>
+
+              <tr data-tags="spring-security,logout,ui">
+                <td><span class="badge text-bg-secondary code-badge">SES-04</span></td>
+                <td>Cierre de sesión</td>
+                <td>Logout accesible y amigable.</td>
+                <td>
+                  <span class="badge badge-soft tag">logoutUrl</span>
+                  <span class="badge badge-soft tag">UI</span>
+                </td>
+              </tr>
+
+              <tr data-tags="logging,security,sensitive,urls">
+                <td><span class="badge text-bg-secondary code-badge">SES-05</span></td>
+                <td>No exponer ID</td>
+                <td>No en URL, mensajes de error ni logs.</td>
+                <td>
+                  <span class="badge badge-soft tag">No session in URL</span>
+                  <span class="badge badge-soft tag">Logs seguros</span>
+                </td>
+              </tr>
+
+              <tr data-tags="spring-security,session-fixation,auth">
+                <td><span class="badge text-bg-secondary code-badge">SES-06</span></td>
+                <td>Nueva ID</td>
+                <td>Nueva sesión/ID tras autenticación; destruir anterior.</td>
+                <td>
+                  <span class="badge badge-soft tag">Session fixation</span>
+                  <span class="badge badge-soft tag">Spring Security</span>
+                </td>
+              </tr>
+
+              <tr data-tags="cookies,httponly,secure,samesite">
+                <td><span class="badge text-bg-secondary code-badge">SES-07</span></td>
+                <td>Cookie de sesión</td>
+                <td>HttpOnly + Secure; Path configurado para evitar acceso entre dominios.</td>
+                <td>
+                  <span class="badge badge-soft tag">HttpOnly</span>
+                  <span class="badge badge-soft tag">Secure</span>
+                  <span class="badge badge-soft tag">SameSite</span>
+                </td>
+              </tr>
+
+              <tr data-tags="spring-session,redis,sessions,security">
+                <td><span class="badge text-bg-secondary code-badge">SES-08</span></td>
+                <td>Seguimiento</td>
+                <td>Listar sesiones activas y permitir cierre selectivo/global.</td>
+                <td>
+                  <span class="badge badge-soft tag">Spring Session</span>
+                  <span class="badge badge-soft tag">Redis</span>
+                </td>
+              </tr>
+
+              <tr data-tags="audit,logging,events,spring-security">
+                <td><span class="badge text-bg-secondary code-badge">SES-09</span></td>
+                <td>Registrar actividad</td>
+                <td>Registrar creación/cierre/expiración de sesiones.</td>
+                <td>
+                  <span class="badge badge-soft tag">Eventos Spring Security</span>
+                  <span class="badge badge-soft tag">Audit log</span>
+                </td>
+              </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- VALIDACIÓN ENTRADA/SALIDA -->
+    <div class="accordion-item">
+      <h2 class="accordion-header" id="h-val">
+        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#c-val"
+                aria-expanded="false" aria-controls="c-val">Validación de datos de entrada y salida</button>
+      </h2>
+      <div id="c-val" class="accordion-collapse collapse" aria-labelledby="h-val" data-bs-parent="#accChecklist">
+        <div class="accordion-body">
+          <div class="table-responsive">
+            <table class="table table-sm table-striped align-middle m-0 controls-table">
+              <thead>
+              <tr>
+                <th style="width: 120px;">ID</th>
+                <th style="width: 260px;">Control</th>
+                <th>Descripción</th>
+                <th class="col-tags">Spring Boot</th>
+              </tr>
+              </thead>
+              <tbody>
+              <tr data-tags="spring-mvc,validation,server-side">
+                <td><span class="badge text-bg-secondary code-badge">VAL-01</span></td>
+                <td>Validar en servidor</td>
+                <td>Las validaciones deben hacerse en el servidor.</td>
+                <td>
+                  <span class="badge badge-soft tag">Spring MVC</span>
+                  <span class="badge badge-soft tag">Bean Validation</span>
+                </td>
+              </tr>
+
+              <tr data-tags="validation,bean-validation,hibernate-validator">
+                <td><span class="badge text-bg-secondary code-badge">VAL-02</span></td>
+                <td>Esquemas de validación</td>
+                <td>Preferir esquemas; si no, validación estándar de librerías.</td>
+                <td>
+                  <span class="badge badge-soft tag">@Valid</span>
+                  <span class="badge badge-soft tag">@Validated</span>
+                  <span class="badge badge-soft tag">Hibernate Validator</span>
+                </td>
+              </tr>
+
+              <tr data-tags="dto,validation,constraints">
+                <td><span class="badge text-bg-secondary code-badge">VAL-03</span></td>
+                <td>Tipificación</td>
+                <td>Datos estructurados tipificados (longitud, patrón, caracteres).</td>
+                <td>
+                  <span class="badge badge-soft tag">DTO</span>
+                  <span class="badge badge-soft tag">@Size/@Pattern</span>
+                  <span class="badge badge-soft tag">@Min/@Max</span>
+                </td>
+              </tr>
+
+              <tr data-tags="sanitization,xss,output-encoding">
+                <td><span class="badge text-bg-secondary code-badge">VAL-04</span></td>
+                <td>Sanitización</td>
+                <td>Sanear datos no estructurados.</td>
+                <td>
+                  <span class="badge badge-soft tag">Output encoding</span>
+                  <span class="badge badge-soft tag">Sanitización</span>
+                </td>
+              </tr>
+
+              <tr data-tags="whitelist,validation,strict">
+                <td><span class="badge text-bg-secondary code-badge">VAL-05</span></td>
+                <td>Aceptar solo lo esperado</td>
+                <td>Rechazar datos inesperados.</td>
+                <td>
+                  <span class="badge badge-soft tag">Whitelist</span>
+                  <span class="badge badge-soft tag">Validación estricta</span>
+                </td>
+              </tr>
+
+              <tr data-tags="spring-data-jpa,jpa,hibernate,sql-injection">
+                <td><span class="badge text-bg-secondary code-badge">VAL-06</span></td>
+                <td>Evitar inyección SQL</td>
+                <td>Consultas parametrizadas.</td>
+                <td>
+                  <span class="badge badge-soft tag">Spring Data JPA</span>
+                  <span class="badge badge-soft tag">JPQL parametrizado</span>
+                  <span class="badge badge-soft tag">PreparedStatement</span>
+                </td>
+              </tr>
+
+              <tr data-tags="xss,thymeleaf,output-encoding,templates">
+                <td><span class="badge text-bg-secondary code-badge">VAL-07</span></td>
+                <td>Codificar HTML</td>
+                <td>Evitar XSS reflejado/almacenado/DOM.</td>
+                <td>
+                  <span class="badge badge-soft tag">Thymeleaf escaping</span>
+                  <span class="badge badge-soft tag">Output encoding</span>
+                  <span class="badge badge-soft tag">CSP</span>
+                </td>
+              </tr>
+
+              <tr data-tags="xml,xxe,parsers,hardening">
+                <td><span class="badge text-bg-secondary code-badge">VAL-08</span></td>
+                <td>Restricciones XML</td>
+                <td>Parsers restrictivos; desactivar entidades externas (XXE).</td>
+                <td>
+                  <span class="badge badge-soft tag">XXE</span>
+                  <span class="badge badge-soft tag">Secure XML parsing</span>
+                </td>
+              </tr>
+
+              <tr data-tags="jackson,deserialization,security">
+                <td><span class="badge text-bg-secondary code-badge">VAL-09</span></td>
+                <td>Deserialización</td>
+                <td>Evitar o proteger ampliamente deserialización no confiable.</td>
+                <td>
+                  <span class="badge badge-soft tag">Jackson</span>
+                  <span class="badge badge-soft tag">Deserialization hardening</span>
+                </td>
+              </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- GESTIÓN DE ERRORES -->
+    <div class="accordion-item">
+      <h2 class="accordion-header" id="h-err">
+        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#c-err"
+                aria-expanded="false" aria-controls="c-err">Gestión de errores</button>
+      </h2>
+      <div id="c-err" class="accordion-collapse collapse" aria-labelledby="h-err" data-bs-parent="#accChecklist">
+        <div class="accordion-body">
+          <div class="table-responsive">
+            <table class="table table-sm table-striped align-middle m-0 controls-table">
+              <thead>
+              <tr>
+                <th style="width: 120px;">ID</th>
+                <th style="width: 260px;">Control</th>
+                <th>Descripción</th>
+                <th class="col-tags">Spring Boot</th>
+              </tr>
+              </thead>
+              <tbody>
+              <tr data-tags="controlleradvice,problem-details,error-handling">
+                <td><span class="badge text-bg-secondary code-badge">ERR-01</span></td>
+                <td>No filtrar información</td>
+                <td>Mensajes genéricos sin pistas sensibles.</td>
+                <td>
+                  <span class="badge badge-soft tag">@ControllerAdvice</span>
+                  <span class="badge badge-soft tag">ProblemDetail</span>
+                  <span class="badge badge-soft tag">ErrorController</span>
+                </td>
+              </tr>
+
+              <tr data-tags="controlleradvice,exception-handler,error-handling">
+                <td><span class="badge text-bg-secondary code-badge">ERR-02</span></td>
+                <td>Centralización</td>
+                <td>Control centralizado; no depender de mensajes del servidor al usuario.</td>
+                <td>
+                  <span class="badge badge-soft tag">@ExceptionHandler</span>
+                  <span class="badge badge-soft tag">@RestControllerAdvice</span>
+                </td>
+              </tr>
+
+              <tr data-tags="spring-security,deny-by-default,authorization">
+                <td><span class="badge text-bg-secondary code-badge">ERR-03</span></td>
+                <td>Denegar por defecto</td>
+                <td>Si hay error en control de acceso, denegar por defecto.</td>
+                <td>
+                  <span class="badge badge-soft tag">Spring Security</span>
+                  <span class="badge badge-soft tag">denyAll()</span>
+                </td>
+              </tr>
+
+              <tr data-tags="transactions,service-layer,try-catch">
+                <td><span class="badge text-bg-secondary code-badge">ERR-04</span></td>
+                <td>Errores controlados</td>
+                <td>Tratar excepciones y cerrar recursos (try/catch/finally).</td>
+                <td>
+                  <span class="badge badge-soft tag">@Transactional</span>
+                  <span class="badge badge-soft tag">Service layer</span>
+                </td>
+              </tr>
+
+              <tr data-tags="logging,security,audit,observabilidad">
+                <td><span class="badge text-bg-secondary code-badge">ERR-05</span></td>
+                <td>Registrar errores</td>
+                <td>Registrar excepciones inesperadas en log de seguridad.</td>
+                <td>
+                  <span class="badge badge-soft tag">SLF4J/Logback</span>
+                  <span class="badge badge-soft tag">Audit log</span>
+                  <span class="badge badge-soft tag">Actuator</span>
+                </td>
+              </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <p class="mt-3 mb-0 muted">
+            Tip: esto se complementa con “Registro seguro” (LOG-xx) para auditar sin filtrar datos sensibles.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- REGISTRO SEGURO -->
+    <div class="accordion-item">
+      <h2 class="accordion-header" id="h-log">
+        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#c-log"
+                aria-expanded="false" aria-controls="c-log">Registro seguro (logging)</button>
+      </h2>
+      <div id="c-log" class="accordion-collapse collapse" aria-labelledby="h-log" data-bs-parent="#accChecklist">
+        <div class="accordion-body">
+          <div class="table-responsive">
+            <table class="table table-sm table-striped align-middle m-0 controls-table">
+              <thead>
+              <tr>
+                <th style="width: 120px;">ID</th>
+                <th style="width: 260px;">Control</th>
+                <th>Descripción</th>
+                <th class="col-tags">Spring Boot</th>
+              </tr>
+              </thead>
+              <tbody>
+              <tr data-tags="logging,masking,pii">
+                <td><span class="badge text-bg-secondary code-badge">LOG-01</span></td>
+                <td>No registrar info sensible</td>
+                <td>No contraseñas, tarjetas o PII; usar tokens/anonimización/cifrado.</td>
+                <td>
+                  <span class="badge badge-soft tag">Logback</span>
+                  <span class="badge badge-soft tag">Masking</span>
+                  <span class="badge badge-soft tag">PII</span>
+                </td>
+              </tr>
+
+              <tr data-tags="logging,validation,injection">
+                <td><span class="badge text-bg-secondary code-badge">LOG-02</span></td>
+                <td>Validar variables de log</td>
+                <td>Validar parámetros variables del apunte para evitar inyecciones.</td>
+                <td>
+                  <span class="badge badge-soft tag">Input validation</span>
+                  <span class="badge badge-soft tag">Structured logging</span>
+                </td>
+              </tr>
+
+              <tr data-tags="audit,logging,security-events">
+                <td><span class="badge text-bg-secondary code-badge">LOG-03</span></td>
+                <td>Apuntes precisos</td>
+                <td>Registrar operaciones/actividad relevante para seguridad.</td>
+                <td>
+                  <span class="badge badge-soft tag">Audit log</span>
+                  <span class="badge badge-soft tag">Eventos de seguridad</span>
+                </td>
+              </tr>
+
+              <tr data-tags="integrity,hash,logging">
+                <td><span class="badge text-bg-secondary code-badge">LOG-04</span></td>
+                <td>Integridad del registro</td>
+                <td>Usar hash para asegurar integridad de logs.</td>
+                <td>
+                  <span class="badge badge-soft tag">Hash</span>
+                  <span class="badge badge-soft tag">Log integrity</span>
+                </td>
+              </tr>
+
+              <tr data-tags="siem,centralized-logging,observabilidad">
+                <td><span class="badge text-bg-secondary code-badge">LOG-05</span></td>
+                <td>Aislamiento del registro</td>
+                <td>Log de seguridad independiente y con protecciones específicas.</td>
+                <td>
+                  <span class="badge badge-soft tag">Centralized logging</span>
+                  <span class="badge badge-soft tag">SIEM</span>
+                  <span class="badge badge-soft tag">Actuator</span>
+                </td>
+              </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CRIPTOGRAFÍA -->
+    <div class="accordion-item">
+      <h2 class="accordion-header" id="h-crt">
+        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#c-crt"
+                aria-expanded="false" aria-controls="c-crt">Criptografía</button>
+      </h2>
+      <div id="c-crt" class="accordion-collapse collapse" aria-labelledby="h-crt" data-bs-parent="#accChecklist">
+        <div class="accordion-body">
+          <div class="table-responsive">
+            <table class="table table-sm table-striped align-middle m-0 controls-table">
+              <thead>
+              <tr>
+                <th style="width: 120px;">ID</th>
+                <th style="width: 260px;">Control</th>
+                <th>Descripción</th>
+                <th class="col-tags">Spring Boot</th>
+              </tr>
+              </thead>
+              <tbody>
+              <tr data-tags="encryption,config,secrets">
+                <td><span class="badge text-bg-secondary code-badge">CRT-01</span></td>
+                <td>Cifrar info sensible</td>
+                <td>Almacenar info sensible cifrada para confidencialidad.</td>
+                <td>
+                  <span class="badge badge-soft tag">Encrypt at rest</span>
+                  <span class="badge badge-soft tag">Secrets</span>
+                  <span class="badge badge-soft tag">Config externa</span>
+                </td>
+              </tr>
+
+              <tr data-tags="secure-rng,java-crypto">
+                <td><span class="badge text-bg-secondary code-badge">CRT-02</span></td>
+                <td>Generador aleatorio seguro</td>
+                <td>RNG aprobado; entropía adecuada incluso con alta carga.</td>
+                <td>
+                  <span class="badge badge-soft tag">SecureRandom</span>
+                  <span class="badge badge-soft tag">JCA/JCE</span>
+                </td>
+              </tr>
+
+              <tr data-tags="key-management,keystore,rotation">
+                <td><span class="badge text-bg-secondary code-badge">CRT-03</span></td>
+                <td>Gestión de claves</td>
+                <td>Política explícita (generación, distribución, revocación, rotación).</td>
+                <td>
+                  <span class="badge badge-soft tag">Keystore</span>
+                  <span class="badge badge-soft tag">Key rotation</span>
+                  <span class="badge badge-soft tag">Secrets manager</span>
+                </td>
+              </tr>
+
+              <tr data-tags="memory,zeroization,security">
+                <td><span class="badge text-bg-secondary code-badge">CRT-04</span></td>
+                <td>Liberación en memoria</td>
+                <td>Sobrescribir con ceros datos/contraseñas cuando dejan de usarse.</td>
+                <td>
+                  <span class="badge badge-soft tag">char[] passwords</span>
+                  <span class="badge badge-soft tag">Zeroization</span>
+                </td>
+              </tr>
+
+              <tr data-tags="crypto,algorithms,deprecation">
+                <td><span class="badge text-bg-secondary code-badge">CRT-05</span></td>
+                <td>Algoritmos robustos</td>
+                <td>No usar DES/MD5/SHA-1; evitar algoritmos obsoletos o débiles.</td>
+                <td>
+                  <span class="badge badge-soft tag">JCA/JCE</span>
+                  <span class="badge badge-soft tag">AES/GCM</span>
+                  <span class="badge badge-soft tag">SHA-256+</span>
+                </td>
+              </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- GESTIÓN SEGURA DE ARCHIVOS -->
+    <div class="accordion-item">
+      <h2 class="accordion-header" id="h-fil">
+        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#c-fil"
+                aria-expanded="false" aria-controls="c-fil">Gestión segura de archivos</button>
+      </h2>
+      <div id="c-fil" class="accordion-collapse collapse" aria-labelledby="h-fil" data-bs-parent="#accChecklist">
+        <div class="accordion-body">
+          <div class="table-responsive">
+            <table class="table table-sm table-striped align-middle m-0 controls-table">
+              <thead>
+              <tr>
+                <th style="width: 120px;">ID</th>
+                <th style="width: 260px;">Control</th>
+                <th>Descripción</th>
+                <th class="col-tags">Spring Boot</th>
+              </tr>
+              </thead>
+              <tbody>
+              <tr data-tags="multipart,file-upload,security">
+                <td><span class="badge text-bg-secondary code-badge">FIL-02</span></td>
+                <td>No permitir renombrar</td>
+                <td>No usar input del usuario para nombrar archivos o directorios.</td>
+                <td>
+                  <span class="badge badge-soft tag">MultipartFile</span>
+                  <span class="badge badge-soft tag">UUID filename</span>
+                  <span class="badge badge-soft tag">Storage service</span>
+                </td>
+              </tr>
+
+              <tr data-tags="multipart,mime-validation,security">
+                <td><span class="badge text-bg-secondary code-badge">FIL-03</span></td>
+                <td>Validar tipos MIME</td>
+                <td>No solo extensión; comprobar MIME. No permitir ejecutables.</td>
+                <td>
+                  <span class="badge badge-soft tag">MIME check</span>
+                  <span class="badge badge-soft tag">Content-Type</span>
+                </td>
+              </tr>
+
+              <tr data-tags="multipart,limits,availability">
+                <td><span class="badge text-bg-secondary code-badge">FIL-04</span></td>
+                <td>Limitar tamaño</td>
+                <td>Limitar al mínimo manejable para evitar problemas de disponibilidad.</td>
+                <td>
+                  <span class="badge badge-soft tag">spring.servlet.multipart.max-file-size</span>
+                  <span class="badge badge-soft tag">max-request-size</span>
+                </td>
+              </tr>
+
+              <tr data-tags="antivirus,scanning,security">
+                <td><span class="badge text-bg-secondary code-badge">FIL-05</span></td>
+                <td>Escanear archivos</td>
+                <td>Antivirus antes de procesar.</td>
+                <td>
+                  <span class="badge badge-soft tag">AV scanning</span>
+                  <span class="badge badge-soft tag">Quarantine</span>
+                </td>
+              </tr>
+
+              <tr data-tags="storage,permissions,no-exec,download">
+                <td><span class="badge text-bg-secondary code-badge">FIL-06</span></td>
+                <td>Privilegios de directorio</td>
+                <td>Sin ejecución en directorios de subida; no usar rutas absolutas en enlaces de descarga.</td>
+                <td>
+                  <span class="badge badge-soft tag">Storage fuera webroot</span>
+                  <span class="badge badge-soft tag">No-exec</span>
+                </td>
+              </tr>
+
+              <tr data-tags="filenames,uuid,security">
+                <td><span class="badge text-bg-secondary code-badge">FIL-07</span></td>
+                <td>Nombres seguros</td>
+                <td>No secuenciales; no incluir info sensible en nombres.</td>
+                <td>
+                  <span class="badge badge-soft tag">UUID</span>
+                  <span class="badge badge-soft tag">No PII in names</span>
+                </td>
+              </tr>
+
+              <tr data-tags="authorization,read-only,security">
+                <td><span class="badge text-bg-secondary code-badge">FIL-08</span></td>
+                <td>Sólo lectura</td>
+                <td>Configurar control de acceso como solo lectura cuando aplique.</td>
+                <td>
+                  <span class="badge badge-soft tag">RBAC</span>
+                  <span class="badge badge-soft tag">Read-only</span>
+                </td>
+              </tr>
+
+              <tr data-tags="quotas,limits,security">
+                <td><span class="badge text-bg-secondary code-badge">FIL-09</span></td>
+                <td>Límite de archivos</td>
+                <td>Limitar número de archivos subidos por usuario.</td>
+                <td>
+                  <span class="badge badge-soft tag">Quotas</span>
+                  <span class="badge badge-soft tag">Rate limit</span>
+                </td>
+              </tr>
+
+              <tr data-tags="integrity,hash,storage">
+                <td><span class="badge text-bg-secondary code-badge">FIL-10</span></td>
+                <td>Integridad</td>
+                <td>Guardar hashes de archivos para verificar integridad.</td>
+                <td>
+                  <span class="badge badge-soft tag">SHA-256</span>
+                  <span class="badge badge-soft tag">Checksum</span>
+                </td>
+              </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SEGURIDAD EN TRANSACCIONES -->
+    <div class="accordion-item">
+      <h2 class="accordion-header" id="h-trn">
+        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#c-trn"
+                aria-expanded="false" aria-controls="c-trn">Seguridad en transacciones</button>
+      </h2>
+      <div id="c-trn" class="accordion-collapse collapse" aria-labelledby="h-trn" data-bs-parent="#accChecklist">
+        <div class="accordion-body">
+          <div class="table-responsive">
+            <table class="table table-sm table-striped align-middle m-0 controls-table">
+              <thead>
+              <tr>
+                <th style="width: 120px;">ID</th>
+                <th style="width: 260px;">Control</th>
+                <th>Descripción</th>
+                <th class="col-tags">Spring Boot</th>
+              </tr>
+              </thead>
+              <tbody>
+              <tr data-tags="server-side-validation,transactions,security">
+                <td><span class="badge text-bg-secondary code-badge">TRN-01</span></td>
+                <td>Evitar Payment Bypass</td>
+                <td>Confirmar compra en servidor; validar firmas; precio en servidor; evitar reutilización de pagos.</td>
+                <td>
+                  <span class="badge badge-soft tag">Service layer</span>
+                  <span class="badge badge-soft tag">@Transactional</span>
+                  <span class="badge badge-soft tag">Server-side validation</span>
+                </td>
+              </tr>
+
+              <tr data-tags="timeouts,security">
+                <td><span class="badge text-bg-secondary code-badge">TRN-02</span></td>
+                <td>Expiración</td>
+                <td>Tiempo de expiración corto para autorizaciones.</td>
+                <td>
+                  <span class="badge badge-soft tag">Timeouts</span>
+                  <span class="badge badge-soft tag">Token expiry</span>
+                </td>
+              </tr>
+
+              <tr data-tags="audit,tracing,observabilidad">
+                <td><span class="badge text-bg-secondary code-badge">TRN-03</span></td>
+                <td>Trazabilidad</td>
+                <td>Garantizar trazabilidad de transacciones.</td>
+                <td>
+                  <span class="badge badge-soft tag">Correlation-ID</span>
+                  <span class="badge badge-soft tag">Tracing</span>
+                  <span class="badge badge-soft tag">Logs</span>
+                </td>
+              </tr>
+
+              <tr data-tags="tls,https,security">
+                <td><span class="badge text-bg-secondary code-badge">TRN-04</span></td>
+                <td>Cifrar comunicación</td>
+                <td>Cifrar comunicaciones con algoritmos robustos.</td>
+                <td>
+                  <span class="badge badge-soft tag">TLS/HTTPS</span>
+                  <span class="badge badge-soft tag">mTLS (si aplica)</span>
+                </td>
+              </tr>
+
+              <tr data-tags="audit,logging,pii">
+                <td><span class="badge text-bg-secondary code-badge">TRN-05</span></td>
+                <td>Registro</td>
+                <td>Registrar operaciones anonimizando información sensible.</td>
+                <td>
+                  <span class="badge badge-soft tag">Audit logging</span>
+                  <span class="badge badge-soft tag">Masking</span>
+                </td>
+              </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SEGURIDAD EN COMUNICACIONES -->
+    <div class="accordion-item">
+      <h2 class="accordion-header" id="h-com">
+        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#c-com"
+                aria-expanded="false" aria-controls="c-com">Seguridad en comunicaciones</button>
+      </h2>
+      <div id="c-com" class="accordion-collapse collapse" aria-labelledby="h-com" data-bs-parent="#accChecklist">
+        <div class="accordion-body">
+          <div class="table-responsive">
+            <table class="table table-sm table-striped align-middle m-0 controls-table">
+              <thead>
+              <tr>
+                <th style="width: 120px;">ID</th>
+                <th style="width: 260px;">Control</th>
+                <th>Descripción</th>
+                <th class="col-tags">Spring Boot</th>
+              </tr>
+              </thead>
+              <tbody>
+              <tr data-tags="tls,https,security">
+                <td><span class="badge text-bg-secondary code-badge">COM-01</span></td>
+                <td>Cifrar canales</td>
+                <td>Usar TLS; si aplica WebSocket con canal cifrado.</td>
+                <td>
+                  <span class="badge badge-soft tag">HTTPS</span>
+                  <span class="badge badge-soft tag">TLS</span>
+                  <span class="badge badge-soft tag">WSS</span>
+                </td>
+              </tr>
+
+              <tr data-tags="crypto,ciphers,tls">
+                <td><span class="badge text-bg-secondary code-badge">COM-02</span></td>
+                <td>Criptografía robusta</td>
+                <td>Suficientemente fuerte para que el descifrado sea inviable.</td>
+                <td>
+                  <span class="badge badge-soft tag">TLS ciphers</span>
+                  <span class="badge badge-soft tag">Forward secrecy</span>
+                </td>
+              </tr>
+
+              <tr data-tags="https,protocols,hardening">
+                <td><span class="badge text-bg-secondary code-badge">COM-03</span></td>
+                <td>Protocolos seguros</td>
+                <td>Usar HTTPS, FTPS, etc.</td>
+                <td>
+                  <span class="badge badge-soft tag">HTTPS only</span>
+                  <span class="badge badge-soft tag">Redirect HTTP→HTTPS</span>
+                </td>
+              </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PROTECCIÓN DE DATOS -->
+    <div class="accordion-item">
+      <h2 class="accordion-header" id="h-dat">
+        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#c-dat"
+                aria-expanded="false" aria-controls="c-dat">Protección de datos</button>
+      </h2>
+      <div id="c-dat" class="accordion-collapse collapse" aria-labelledby="h-dat" data-bs-parent="#accChecklist">
+        <div class="accordion-body">
+          <div class="table-responsive">
+            <table class="table table-sm table-striped align-middle m-0 controls-table">
+              <thead>
+              <tr>
+                <th style="width: 120px;">ID</th>
+                <th style="width: 260px;">Control</th>
+                <th>Descripción</th>
+                <th class="col-tags">Spring Boot</th>
+              </tr>
+              </thead>
+              <tbody>
+              <tr data-tags="policy,rgpd,ens,documentation">
+                <td><span class="badge text-bg-secondary code-badge">DAT-01</span></td>
+                <td>Política de protección</td>
+                <td>Debe existir una política explícita de protección de datos.</td>
+                <td>
+                  <span class="badge badge-soft tag">RGPD</span>
+                  <span class="badge badge-soft tag">ENS</span>
+                  <span class="badge badge-soft tag">Docs</span>
+                </td>
+              </tr>
+
+              <tr data-tags="https,headers,no-cache,rest">
+                <td><span class="badge text-bg-secondary code-badge">DAT-02</span></td>
+                <td>Envío de datos sensibles</td>
+                <td>Enviar en body/cabeceras (no en URL); canal seguro; anti-caché.</td>
+                <td>
+                  <span class="badge badge-soft tag">HTTPS</span>
+                  <span class="badge badge-soft tag">No-store</span>
+                  <span class="badge badge-soft tag">REST</span>
+                </td>
+              </tr>
+
+              <tr data-tags="encryption,db,jpa,backup">
+                <td><span class="badge text-bg-secondary code-badge">DAT-03</span></td>
+                <td>Datos almacenados seguros</td>
+                <td>Cifrar datos en reposo; políticas de backup para disponibilidad.</td>
+                <td>
+                  <span class="badge badge-soft tag">DB encryption</span>
+                  <span class="badge badge-soft tag">Backups</span>
+                  <span class="badge badge-soft tag">Spring Data</span>
+                </td>
+              </tr>
+
+              <tr data-tags="memory,zeroization,security">
+                <td><span class="badge text-bg-secondary code-badge">DAT-04</span></td>
+                <td>Liberación en memoria</td>
+                <td>Sobrescribir con ceros cuando no se necesite.</td>
+                <td>
+                  <span class="badge badge-soft tag">char[] passwords</span>
+                  <span class="badge badge-soft tag">Zeroization</span>
+                </td>
+              </tr>
+
+              <tr data-tags="retention,deletion,policy">
+                <td><span class="badge text-bg-secondary code-badge">DAT-05</span></td>
+                <td>Borrado</td>
+                <td>Política de borrado seguro al final del ciclo de vida.</td>
+                <td>
+                  <span class="badge badge-soft tag">Retention</span>
+                  <span class="badge badge-soft tag">Soft delete</span>
+                  <span class="badge badge-soft tag">Purge</span>
+                </td>
+              </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <footer class="mt-4 small muted">
+    <div class="card">
+      <div class="card-body">
+
+        <!-- Documento oficial con icono -->
+        <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+          <i class="bi bi-shield-check text-primary" aria-hidden="true"></i>
+          <span class="fw-semibold">Documento oficial (CCN-CERT BP/28)</span>
+          <a class="btn btn-sm btn-outline-primary"
+             href="https://angeles.ccn-cert.cni.es/es/docman/documentos-publicos/informes-de-buenas-practicas/390-ccn-cert-bp-28-recomendaciones-sobre-desarrollo-seguro/file"
+             target="_blank" rel="noopener noreferrer">
+            <i class="bi bi-file-earmark-pdf me-1" aria-hidden="true"></i>
+            Abrir PDF
+          </a>
+        </div>
+        <div class="small text-secondary mb-3">
+          Fuente: CCN-CERT (Informe de buenas prácticas BP/28).
+        </div>
+
+        <div class="fw-semibold">Notas</div>
+        <ul class="mb-0">
+          <li>La búsqueda filtra en todas las secciones a la vez.</li>
+          <li>Las etiquetas permiten aterrizar cada control en mecanismos habituales de Spring Boot.</li>
+          <li>Si quieres, te lo adapto a sidebar con <strong>scrollspy</strong> o a tarjetas por categoría.</li>
+        </ul>
+      </div>
+    </div>
+  </footer>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+<script>
+  const filterInput = document.getElementById("filterInput");
+  const clearBtn = document.getElementById("clearBtn");
+  const countBadge = document.getElementById("countBadge");
+  const tagBar = document.getElementById("tagBar");
+  const resetTagsBtn = document.getElementById("resetTagsBtn");
+
+  const allRows = Array.from(document.querySelectorAll(".controls-table tbody tr"));
+
+  let activeTag = null;
+
+  function normalize(s) {
+    return (s || "")
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/\p{Diacritic}/gu, "");
+  }
+
+  function rowMatchesText(row, q) {
+    if (!q) return true;
+    const text = normalize(row.innerText);
+    return text.includes(q);
+  }
+
+  function rowMatchesTag(row, tag) {
+    if (!tag) return true;
+    const tags = (row.getAttribute("data-tags") || "").split(",").map(t => t.trim());
+    return tags.includes(tag);
+  }
+
+  function updateCount() {
+    const visible = allRows.filter(r => r.style.display !== "none").length;
+    countBadge.textContent = visible + (visible === 1 ? " control" : " controles");
+  }
+
+  function applyFilter() {
+    const q = normalize(filterInput.value.trim());
+
+    allRows.forEach(row => {
+      const okText = rowMatchesText(row, q);
+      const okTag = rowMatchesTag(row, activeTag);
+      row.style.display = (okText && okTag) ? "" : "none";
+    });
+
+    // Oculta secciones vacías
+    document.querySelectorAll(".accordion-item").forEach(item => {
+      const rows = item.querySelectorAll("tbody tr");
+      const anyVisible = Array.from(rows).some(r => r.style.display !== "none");
+      item.style.display = anyVisible ? "" : "none";
+    });
+
+    updateCount();
+  }
+
+  function buildTagBar() {
+    const map = new Map();
+
+    allRows.forEach(row => {
+      const tags = (row.getAttribute("data-tags") || "")
+        .split(",")
+        .map(t => t.trim())
+        .filter(Boolean);
+
+      tags.forEach(t => map.set(t, (map.get(t) || 0) + 1));
+    });
+
+    const sorted = Array.from(map.entries())
+      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+
+    tagBar.innerHTML = "";
+    sorted.forEach(([tag, count]) => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "btn btn-sm btn-outline-primary";
+      btn.dataset.tag = tag;
+      btn.innerHTML = `<i class="bi bi-tag me-1" aria-hidden="true"></i>${tag} <span class="badge text-bg-primary ms-1">${count}</span>`;
+      btn.addEventListener("click", () => {
+        // toggle
+        activeTag = (activeTag === tag) ? null : tag;
+        updateTagButtons();
+        applyFilter();
+      });
+      tagBar.appendChild(btn);
+    });
+
+    updateTagButtons();
+  }
+
+  function updateTagButtons() {
+    Array.from(tagBar.querySelectorAll("button")).forEach(btn => {
+      const t = btn.dataset.tag;
+      btn.classList.toggle("active", t === activeTag);
+      btn.setAttribute("aria-pressed", (t === activeTag) ? "true" : "false");
+    });
+  }
+
+  // Events
+  filterInput.addEventListener("input", applyFilter);
+  clearBtn.addEventListener("click", () => {
+    filterInput.value = "";
+    applyFilter();
+  });
+  resetTagsBtn.addEventListener("click", () => {
+    activeTag = null;
+    updateTagButtons();
+    applyFilter();
+  });
+
+  // init
+  buildTagBar();
+  applyFilter();
+</script>
+</body>
 </html>

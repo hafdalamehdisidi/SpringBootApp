@@ -16,13 +16,14 @@
 
 <body>
 	<div th:replace="fragments/layout :: cabecera"></div>
-<span class="alert alert-warning" th:if="${listaProductos.size() == 0}">
+		
+<span class="alert alert-warning" th:if="${productos.empty}">
     Esto está vacío
 </span>
 
-<div th:unless="${listaProductos.isEmpty()}">
+<div th:unless="${productos.empty}">
     <table class="table">
-        <tr th:each="producto : ${listaProductos}">
+        <tr th:each="producto : ${productos}">
             <td><span th:text="${producto.nombre}"></span></td>
             <td><span th:text="${producto.precio}"></span></td>
             <td><span th:text="${producto.categoria}"></span></td>
@@ -49,7 +50,10 @@
             </td>
         </tr>
     </table>
-</div>
+	<div th:replace="fragments/layout :: paginacion"></div>
+
+	</div>
+	
 
 <a th:href="@{/formulario}">Agregar Producto</a>
 

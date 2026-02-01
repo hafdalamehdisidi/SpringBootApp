@@ -12,6 +12,8 @@ import jakarta.annotation.PostConstruct;
 
 @Component
 public class IniciarDatos {
+	
+	private final int TOTAL_PRODUCTO = 100;
 
 	@Autowired
 	private ProductoServicio servicio;
@@ -20,7 +22,7 @@ public class IniciarDatos {
 	@PostConstruct
 	void init() {
 		
-		for(int i=0; i<20; i++) {
+		for(int i=0; i<TOTAL_PRODUCTO; i++) {
 		Producto p = new Producto();
 		p.setCategoria(fake().dog().name());
 		p.setNombre(fake().artist().name());

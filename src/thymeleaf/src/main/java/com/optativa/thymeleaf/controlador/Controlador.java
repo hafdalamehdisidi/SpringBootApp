@@ -1,7 +1,11 @@
 package com.optativa.thymeleaf.controlador;
 
+import java.util.ArrayList;
 import java.util.List;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
@@ -38,12 +42,21 @@ public class Controlador {
 
     /* ==========================
        LISTADO Y DETALLE
-       ========================== */
+       ==========================
+       Si en el controller pasas un Page<Producto> al modelo, en thymeleaf:
+
+			Para comprobar vacío: productos.empty
+			Para iterar: productos.content
+        *
+        */
 
     @GetMapping("/productos")
-    public String listado(Model model) {
-        List<Producto> productos = productoServicio.obtenerProductos();
-        model.addAttribute("listaProductos", productos);
+    public String listado(Model model, @PageableDefault(size=20) Pageable page) {
+        Page<Producto> productos = productoServicio.obtenerProductoPorPagina(page);
+       
+    	//Page<Producto> productos = Page.empty();
+        model.addAttribute("productos", productos);
+		model.addAttribute("total", productos.getTotalElements());
         return "lista";
     }
 

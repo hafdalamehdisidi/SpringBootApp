@@ -20,6 +20,71 @@
     </nav>
 </div>
 
+<!--- CONTROLES DE PAGINACIÓN de Estudiantes-->
+<div th:fragment="paginacion">
+    <ul class="pagination">
+
+        <!-- Inicio -->
+        <li th:if="${productos.number > 0}" class="page-item">
+            <a th:href="@{/productos(page=0)}"
+               class="page-link">Inicio</a>
+        </li>
+
+        <!-- Anterior -->
+        <li th:if="${productos.hasPrevious()}" class="page-item">
+            <a th:href="@{/productos(page=${productos.number-1})}"
+               class="page-link">Anterior</a>
+        </li>
+
+        <!-- Enlace a la página anterior a la actual, si existe -->
+        <li th:if="${productos.number > 1}" class="page-item">
+            <a th:href="@{/productos(page=${productos.number-1})}"
+               class="page-link" th:text="${productos.number - 1}"></a>
+        </li>
+
+        <!-- Enlace a la página actual (activo) -->
+        <li class="page-item active">
+            <span class="page-link" th:text="${productos.number}"></span>
+        </li>
+
+        <!-- Enlace a la página siguiente a la actual, si existe -->
+        <li th:if="${productos.number + 1 < productos.totalPages}"
+            class="page-item">
+            <a th:href="@{/productos(page=${productos.number+1})}"
+               class="page-link" th:text="${productos.number + 1}"></a>
+        </li>
+
+        <!-- Siguiente -->
+        <li th:if="${productos.hasNext()}" class="page-item">
+            <a th:href="@{/productos(page=${productos.number+1})}"
+               class="page-link">Siguiente</a>
+        </li>
+
+        <!-- Fin -->
+        <li th:if="${productos.number + 1 < productos.totalPages}"
+            class="page-item">
+            <a th:href="@{/productos( page=${productos.totalPages-1})}"
+               class="page-link">Fin</a>
+        </li>
+
+    </ul>
+</div>
+<!-- fragmentos/buscador.html -->
+<div th:fragment="buscador">
+    <form action="#" th:action="@{/productos}" method="get" class="d-flex mb-3">
+        <!-- Campo de texto (nombre) -->
+        <input type="text"
+               name="nombre"
+               th:value="${nombreBusqueda}"
+               placeholder="Buscar por nombre…"
+               class="form-control me-2"
+               aria-label="Nombre">
+
+        <!-- Botón de búsqueda -->
+        <button type="submit" class="btn btn-primary">Buscar</button>
+    </form>
+</div>
+
 <!-- PIE -->
 <div th:fragment="pie">
     <div class="text-center text-muted mt-4">

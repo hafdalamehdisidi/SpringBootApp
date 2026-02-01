@@ -53,27 +53,21 @@ public class SecurityConfig {
 	        http.authorizeHttpRequests(auth -> auth
 	                // estáticos
 	                .requestMatchers(PathRequest.toStaticResources().atCommonLocations()).permitAll()
-
 	                // público
 	                .requestMatchers("/", "/saluda").permitAll()
-
 	                // H2 solo ADMIN
 	                .requestMatchers(PathRequest.toH2Console()).hasRole("ADMIN")
 	                .requestMatchers("/h2-console/**", "/h2/**").hasRole("ADMIN")
-
 	                // productos: USER o ADMIN
 	                .requestMatchers("/productos/**").hasAnyRole("USER", "ADMIN")
-
 	                // el resto: autenticado
 	                .anyRequest().authenticated()
 	        );
-
 	        // CSRF: desactivar solo para H2
 	        http.csrf(csrf -> csrf
 	                .ignoringRequestMatchers(PathRequest.toH2Console())
 	                .ignoringRequestMatchers("/h2-console/**", "/h2/**")
 	        );
-
 	        // login form
 	        http.formLogin(form -> form
 	                .defaultSuccessUrl("/productos", true)

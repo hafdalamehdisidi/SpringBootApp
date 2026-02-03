@@ -17,6 +17,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.web.SecurityFilterChain;
 
+import com.optativa.thymeleaf.entidad.enumerado.Rol;
+
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
@@ -27,13 +29,13 @@ public class SecurityConfig {
     		throws Exception{
 		return authenticationConfiguration.getAuthenticationManager();
 	} 
-    
-	@Bean /** Encriptar contraseñas */
+/*
+	@Bean //Encriptar contraseñas 
 	PasswordEncoder passwordEncoder() {
 		return new BCryptPasswordEncoder();
-	}
-	
-	@Bean
+	}*/
+	/*
+	 @Bean
 	UserDetailsService users(PasswordEncoder passwordEncoder) {
 	
 		UserDetails user1 = User.builder().username("user1")
@@ -43,7 +45,7 @@ public class SecurityConfig {
 		
 		return new InMemoryUserDetailsManager(user1, admin1);
 	}
-	
+	*/
 	   @Bean
 	    SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
 
@@ -56,10 +58,10 @@ public class SecurityConfig {
 	                // público
 	                .requestMatchers("/", "/saluda").permitAll()
 	                // H2 solo ADMIN
-	                .requestMatchers(PathRequest.toH2Console()).hasRole("ADMIN")
-	                .requestMatchers("/h2-console/**", "/h2/**").hasRole("ADMIN")
+	                .requestMatchers(PathRequest.toH2Console()).hasRole(Rol.ADMIN.toString())
+	                .requestMatchers("/h2-console/**", "/h2/**").hasRole(Rol.ADMIN.toString())
 	                // productos: USER o ADMIN
-	                .requestMatchers("/productos/**").hasAnyRole("USER", "ADMIN")
+	                .requestMatchers("/productos/**").hasAnyRole(Rol.USUARIO.toString(), Rol.ADMIN.toString())
 	                // el resto: autenticado
 	                .anyRequest().authenticated()
 	        );

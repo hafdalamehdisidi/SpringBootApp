@@ -15,7 +15,10 @@
 
     <!-- Añade fragmento: ~{...} -->
     <div th:replace="~{fragments/layout :: cabecera}"></div>
+	<div th:replace="~{fragments/layout :: logout}"></div>
 
+	<div th:replace="~{fragments/layout :: usuario}"></div>
+	
     <span class="alert alert-warning" th:if="${productos.empty}">
         Esto está vacío
     </span>

@@ -69,6 +69,14 @@
 
     </ul>
 </div>
+<!-- fragmentos/usuario.html -->
+<div th:fragment="usuario">
+  <h1>
+    Bienvenido
+    <span th:if="${usuario != null}" th:text="${usuario.nombre}"></span>
+    <span th:unless="${usuario != null}">invitado</span>
+  </h1>
+</div>
 <!-- fragmentos/buscador.html -->
 <div th:fragment="buscador">
     <form action="#" th:action="@{/productos}" method="get" class="d-flex mb-3">
@@ -92,5 +100,15 @@
     </div>
 </div>
 
+
+<!-- fragmentos/logout.html -->
+<div th:fragment="logout">
+    <form th:if="${usuario != null}" th:action="@{/logout}" method="post" class="d-inline">
+        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+        <button type="submit">
+            Logout
+        </button>
+    </form>
+</div>
 </body>
 </html>

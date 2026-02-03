@@ -23,16 +23,16 @@ import org.springframework.validation.BindingResult;
 import org.springframework.validation.FieldError;
 
 import com.optativa.thymeleaf.entidad.Producto;
-import com.optativa.thymeleaf.servicio.ProductoServicioImpl;
+import com.optativa.thymeleaf.servicio.ProductoServicio;
 
-@WebMvcTest(Controlador.class)
-class ControladorTest {
+@WebMvcTest(ProductoControlador.class)
+class ProductoControladorTest {
 
     @Autowired
     private MockMvc mockMvc;
 
     @MockitoBean
-    private ProductoServicioImpl servicio;   // 🔴 CLAVE: mock del servicio para que el contexto arranque
+    private ProductoServicio servicio;   // 🔴 CLAVE: mock del servicio para que el contexto arranque
 
     @Test
     @DisplayName("GET /formulario devuelve la vista 'formulario' con un Producto en el modelo")

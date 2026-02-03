@@ -12,18 +12,22 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 
 import com.optativa.thymeleaf.entidad.Producto;
+import com.optativa.thymeleaf.entidad.Usuario;
 import com.optativa.thymeleaf.servicio.ProductoServicio;
+import com.optativa.thymeleaf.servicio.UsuarioServicio;
 
 import jakarta.validation.Valid;
 
 @Controller
-public class Controlador {
+public class ProductoControlador {
 
     private final ProductoServicio productoServicio;
+    private final UsuarioServicio usuarioServicio;
 
     // Inyección por constructor de la implementación (ProductoServicioImpl)
-    public Controlador(ProductoServicio productoServicio) {
+    public ProductoControlador(ProductoServicio productoServicio, UsuarioServicio usuarioServicio) {
         this.productoServicio = productoServicio;
+        this.usuarioServicio = usuarioServicio;
     }
 
     /* ==========================
@@ -46,12 +50,14 @@ public class Controlador {
 			Para iterar: productos.content
         *
         */
-
     @GetMapping("/productos")
     public String listado(Model model, @PageableDefault(size=20) Pageable page) {
         Page<Producto> productos = productoServicio.obtenerProductoPorPagina(page);
-       
+        Usuario usuario = usuarioServicio.obtenerUsuarioConectado();       
+
+        
     	//Page<Producto> productos = Page.empty();
+        model.addAttribute("usuario", usuario);
         model.addAttribute("productos", productos);
 		model.addAttribute("total", productos.getTotalElements());
         return "lista";

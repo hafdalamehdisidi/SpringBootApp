@@ -54,7 +54,7 @@ public class UsuarioServicioImpl implements UsuarioServicio {
     }
 
     @Override
-    public Usuario actualizar(Integer id, String nuevoNombre, Rol nuevoRol) {
+    public Usuario actualizar(Long id, String nuevoNombre, Rol nuevoRol) {
         Objects.requireNonNull(id, "El id no puede ser null");
         String nuevoNombreNorm = normalizarNombre(nuevoNombre);
         Objects.requireNonNull(nuevoRol, "El rol no puede ser null");
@@ -74,7 +74,7 @@ public class UsuarioServicioImpl implements UsuarioServicio {
     }
 
     @Override
-    public void cambiarContrasena(Integer id, String contrasenaActualEnClaro, String nuevaContrasenaEnClaro) {
+    public void cambiarContrasena(Long id, String contrasenaActualEnClaro, String nuevaContrasenaEnClaro) {
         Objects.requireNonNull(id, "El id no puede ser null");
         validarContrasena(contrasenaActualEnClaro);
         validarContrasena(nuevaContrasenaEnClaro);
@@ -92,7 +92,7 @@ public class UsuarioServicioImpl implements UsuarioServicio {
 
     @Override
     @Transactional(readOnly = true)
-    public Usuario obtenerPorId(Integer id) {
+    public Usuario obtenerPorId(Long id) {
         Objects.requireNonNull(id, "El id no puede ser null");
         return usuarioRepositorio.findById(id)
                 .orElseThrow(() -> new UsernameNotFoundException("Usuario no encontrado (id=" + id + ")"));
@@ -124,7 +124,7 @@ public class UsuarioServicioImpl implements UsuarioServicio {
     }
 
     @Override
-    public void eliminar(Integer id) {
+    public void eliminar(Long id) {
         Objects.requireNonNull(id, "El id no puede ser null");
 
         if (!usuarioRepositorio.existsById(id)) {

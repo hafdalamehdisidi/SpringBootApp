@@ -10,12 +10,12 @@ import com.optativa.thymeleaf.entidad.enumerado.Rol;
 
 public interface UsuarioServicio {
     Usuario crear(String nombre, String contrasenaEnClaro, Rol rol);
-    Usuario actualizar(Integer id, String nuevoNombre, Rol nuevoRol);
-    void cambiarContrasena(Integer id, String contrasenaActualEnClaro, String nuevaContrasenaEnClaro);
-    Usuario obtenerPorId(Integer id);
+    Usuario actualizar(Long id, String nuevoNombre, Rol nuevoRol);
+    void cambiarContrasena(Long id, String contrasenaActualEnClaro, String nuevaContrasenaEnClaro);
+    Usuario obtenerPorId(Long id);
     Usuario obtenerPorNombre(String nombre);
     List<Usuario> listar();
     Page<Usuario> listar(Pageable pageable);   /* paginado */
-    void eliminar(Integer id);
+    void eliminar(Long id);
     Usuario obtenerUsuarioConectado();
 }

@@ -1,9 +1,6 @@
 package com.optativa.thymeleaf.semilla;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
-import org.springframework.context.annotation.Bean;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
@@ -14,18 +11,26 @@ import com.optativa.thymeleaf.entidad.enumerado.Rol;
 import com.optativa.thymeleaf.repositorio.UsuarioRepositorio;
 import com.optativa.thymeleaf.servicio.ProductoServicio;
 
-import jakarta.annotation.PostConstruct;
 
 @Component
 public class IniciarDatos implements CommandLineRunner {
 
 	private final int TOTAL_PRODUCTO = 100;
 
-	@Autowired
-	private ProductoServicio servicio;
-	@Autowired
-	private UsuarioRepositorio usuarioRepositorio;
 
+	private final ProductoServicio servicio;
+	private final UsuarioRepositorio usuarioRepositorio;
+	 private final PasswordEncoder passwordEncoder;
+	
+	public IniciarDatos(ProductoServicio servicio, UsuarioRepositorio usuarioRepositorio, PasswordEncoder passwordEncoder)
+	{
+		this.servicio = servicio;
+		this.usuarioRepositorio= usuarioRepositorio;
+		this.passwordEncoder = passwordEncoder;
+	}
+	
+	
+	
 	private void crearUsuarioSiNoExiste(String nombre, String contrasenaEnClaro, Rol rol) {
 		// tu repo devuelve null si no existe
 		if (usuarioRepositorio.findByNombre(nombre) != null) {
@@ -34,7 +39,7 @@ public class IniciarDatos implements CommandLineRunner {
 
 		Usuario u = new Usuario();
 		u.setNombre(nombre);
-		u.setContrasena(passwordEncoder().encode(contrasenaEnClaro));
+		u.setContrasena(passwordEncoder.encode(contrasenaEnClaro));
 		u.setRol(rol);
 
 		usuarioRepositorio.save(u);
@@ -57,8 +62,5 @@ public class IniciarDatos implements CommandLineRunner {
 
 	}
 
-	@Bean
-	PasswordEncoder passwordEncoder() {
-		return new BCryptPasswordEncoder();
-	}
+	
 }

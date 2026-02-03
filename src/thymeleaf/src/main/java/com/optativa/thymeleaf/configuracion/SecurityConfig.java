@@ -29,11 +29,11 @@ public class SecurityConfig {
     		throws Exception{
 		return authenticationConfiguration.getAuthenticationManager();
 	} 
-/*
+
 	@Bean //Encriptar contraseñas 
 	PasswordEncoder passwordEncoder() {
 		return new BCryptPasswordEncoder();
-	}*/
+	}
 	/*
 	 @Bean
 	UserDetailsService users(PasswordEncoder passwordEncoder) {

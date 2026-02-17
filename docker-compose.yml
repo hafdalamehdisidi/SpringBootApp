@@ -1,0 +1,78 @@
+# ./docker-compose.yml  (en la RAÍZ: SpringBootApp/docker-compose.yml)
+name: springbootapp
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: springbootapp-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: springbootapp
+      MYSQL_USER: app
+      MYSQL_PASSWORD: app
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    command: >
+      --default-authentication-plugin=mysql_native_password
+      --character-set-server=utf8mb4
+      --collation-server=utf8mb4_unicode_ci
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -proot --silent"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+  backend:
+    build:
+      context: ./src/Backend/API_SEGURITY_EXAMPLE
+      dockerfile: Dockerfile
+    container_name: springbootapp-backend
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      # Perfil demo
+      SPRING_PROFILES_ACTIVE: demo
+
+      # Puerto interno del contenedor
+      SERVER_PORT: "9091"
+
+      # Datasource (IMPORTANTE: host=mysql, no localhost)
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/springbootapp?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      SPRING_DATASOURCE_USERNAME: app
+      SPRING_DATASOURCE_PASSWORD: app
+
+      # JPA (si quieres que cree/borre en demo)
+      SPRING_JPA_HIBERNATE_DDL_AUTO: create-drop
+    ports:
+      - "9091:9091"
+
+  frontend:
+    image: python:3.12-alpine
+    container_name: springbootapp-frontend
+    restart: unless-stopped
+    working_dir: /site
+    volumes:
+      - ./src/Frontend:/site:ro
+    command: ["python", "-m", "http.server", "8081"]
+    ports:
+      - "8081:8081"
+
+  swagger-ui:
+    image: swaggerapi/swagger-ui:latest
+    container_name: springbootapp-openapi-ui
+    restart: unless-stopped
+    environment:
+      SWAGGER_JSON: /spec/openapi.yaml
+    volumes:
+      - ./docs/api:/spec:ro
+    ports:
+      - "8083:8080"
+
+volumes:
+  mysql_data:
+

@@ -1,0 +1,7 @@
+/home/kronos/Documentos/git_proyectos/SpringBootApp/src/thymeleaf/src/main/java/com/optativa/thymeleaf/ThymeleafApplication.java
+/home/kronos/Documentos/git_proyectos/SpringBootApp/src/thymeleaf/src/main/java/com/optativa/thymeleaf/controlador/Controlador.java
+/home/kronos/Documentos/git_proyectos/SpringBootApp/src/thymeleaf/src/main/java/com/optativa/thymeleaf/entidad/Producto.java
+/home/kronos/Documentos/git_proyectos/SpringBootApp/src/thymeleaf/src/main/java/com/optativa/thymeleaf/repositorio/ProductoRepositorio.java
+/home/kronos/Documentos/git_proyectos/SpringBootApp/src/thymeleaf/src/main/java/com/optativa/thymeleaf/servicio/ProductoServicio.java
+/home/kronos/Documentos/git_proyectos/SpringBootApp/src/thymeleaf/src/main/java/com/optativa/thymeleaf/servicio/ProductoServicioH2Impl.java
+/home/kronos/Documentos/git_proyectos/SpringBootApp/src/thymeleaf/src/main/java/com/optativa/thymeleaf/servicio/ProductoServicioImpl.java

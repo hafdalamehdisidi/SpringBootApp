@@ -1,0 +1,4 @@
+-------------------------------------------------------------------------------
+Test set: com.optativa.thymeleaf.ThymeleafApplicationTests
+-------------------------------------------------------------------------------
+Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 2.876 s -- in com.optativa.thymeleaf.ThymeleafApplicationTests

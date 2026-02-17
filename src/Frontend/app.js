@@ -1,318 +1,479 @@
-// ====== Estado ======
-let JWT = null;
-let lastJson = null;
+(() => {
+  // ----------------------------
+  // State
+  // ----------------------------
+  let token = null;
+  let lastText = "";
+  let librosPage = 0;
+  const librosSize = 10;
+  let librosTotalPages = 0;
 
-let librosPage = 0;
-let librosSize = 10;
-let librosTotalPages = 0;
+  // ----------------------------
+  // DOM
+  // ----------------------------
+  const $ = (id) => document.getElementById(id);
 
-const $ = (id) => document.getElementById(id);
+  const el = {
+    api: $("api"),
+    preset: $("preset"),
+    btnFill: $("btnFill"),
+    email: $("email"),
+    password: $("password"),
+    btnLogin: $("btnLogin"),
+    btnLogout: $("btnLogout"),
+    sessionBadge: $("sessionBadge"),
 
-function apiBase() {
-  return ($("api").value || "").replace(/\/+$/, "");
-}
-function v1(path) {
-  return `${apiBase()}/api/v1${path}`;
-}
+    jwt: $("jwt"),
+    claims: $("claims"),
 
-function setAlert(type, msg) {
-  const el = $("alert");
-  el.className = `alert alert-${type}`;
-  el.textContent = msg;
-  el.classList.remove("d-none");
-}
-function clearAlert() {
-  $("alert").classList.add("d-none");
-  $("alert").textContent = "";
-}
+    alert: $("alert"),
+    alert2: $("alert2"),
 
-function setSubtitle(text) {
-  $("subtitle").textContent = text;
-}
+    viewLogin: $("viewLogin"),
+    viewUser: $("viewUser"),
+    viewAdmin: $("viewAdmin"),
 
-function setSession(connected, info = "Desconectado") {
-  const badge = $("sessionBadge");
-  if (!connected) {
-    badge.className = "badge badge-soft px-3 py-2";
-    badge.textContent = "Desconectado";
-    $("btnLogout").disabled = true;
-    $("btnLibros").disabled = true;
-    $("btnUsers").disabled = true;
-    $("btnResources").disabled = true;
-  } else {
-    badge.className = "badge text-bg-success px-3 py-2";
-    badge.textContent = info;
-    $("btnLogout").disabled = false;
-    $("btnLibros").disabled = false;
-    $("btnResources").disabled = false;
-    // btnUsers lo activamos si el token parece admin (heurística simple)
+    // USER view
+    btnUserRefresh: $("btnUserRefresh"),
+    librosMeta: $("librosMeta"),
+    librosTbody: $("librosTbody"),
+    btnPrev: $("btnPrev"),
+    btnNext: $("btnNext"),
+
+    // ADMIN view
+    btnAdminRefresh: $("btnAdminRefresh"),
+    btnAdminUsers: $("btnAdminUsers"),
+    btnAdminLibros: $("btnAdminLibros"),
+    btnAdminResource: $("btnAdminResource"),
+
+    newTitulo: $("newTitulo"),
+    newAutor: $("newAutor"),
+    newIsbn: $("newIsbn"),
+    btnCreateLibro: $("btnCreateLibro"),
+
+    out: $("out"),
+    btnCopy: $("btnCopy"),
+    btnClear: $("btnClear"),
+
+    adminTables: $("adminTables"),
+    usersSection: $("usersSection"),
+    usersTbody: $("usersTbody"),
+
+    resourceSection: $("resourceSection"),
+    resourceBox: $("resourceBox"),
+
+    librosSectionAdmin: $("librosSectionAdmin"),
+    librosTbodyAdmin: $("librosTbodyAdmin"),
+  };
+
+  // ----------------------------
+  // Helpers
+  // ----------------------------
+  const apiBase = () => (el.api.value || "").replace(/\/+$/, "");
+
+  function showAlert(node, kind, msg) {
+    node.className = `alert alert-${kind}`;
+    node.textContent = msg;
+    node.classList.remove("d-none");
   }
-}
-
-function setJwtUI(jwt) {
-  $("jwt").textContent = jwt || "";
-  $("claims").textContent = jwt ? decodeJwtClaims(jwt) : "";
-}
-
-function decodeJwtClaims(token) {
-  try {
-    const payload = token.split(".")[1];
-    const json = atob(payload.replace(/-/g, "+").replace(/_/g, "/"));
-    return JSON.stringify(JSON.parse(json), null, 2);
-  } catch {
-    return "(No se pudo decodificar)";
+  function hideAlert(node) {
+    node.classList.add("d-none");
   }
-}
 
-// ====== HTTP ======
-async function requestJson(url, { method = "GET", body = null, auth = true } = {}) {
-  const headers = { "Content-Type": "application/json" };
-  if (auth && JWT) headers["Authorization"] = `Bearer ${JWT}`;
+  function setBadge(text, connected) {
+    el.sessionBadge.textContent = text;
+    el.sessionBadge.classList.toggle("badge-soft", true);
+    if (connected) el.sessionBadge.classList.add("bg-success-subtle");
+    else el.sessionBadge.classList.remove("bg-success-subtle");
+  }
 
-  const res = await fetch(url, {
-    method,
-    headers,
-    body: body ? JSON.stringify(body) : null,
-    mode: "cors",
-    credentials: "omit",
+  function setOut(val) {
+    lastText = typeof val === "string" ? val : JSON.stringify(val, null, 2);
+    el.out.textContent = lastText;
+  }
+
+  function escapeHtml(s) {
+    return String(s)
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#039;");
+  }
+
+  function decodeJwtPayload(jwt) {
+    try {
+      const parts = jwt.split(".");
+      if (parts.length !== 3) return null;
+      const b64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+      const json = decodeURIComponent(
+        atob(b64)
+          .split("")
+          .map((c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
+          .join("")
+      );
+      return JSON.parse(json);
+    } catch {
+      return null;
+    }
+  }
+
+  function extractRolesFromClaims(claims) {
+    if (!claims) return [];
+
+    // casos típicos: roles, authorities, scope, realm_access.roles, etc.
+    const roles = new Set();
+
+    const pushMany = (arr) => {
+      if (Array.isArray(arr)) arr.forEach((x) => roles.add(String(x)));
+    };
+
+    pushMany(claims.roles);
+    pushMany(claims.authorities);
+
+    // scope suele venir como string
+    if (typeof claims.scope === "string") {
+      claims.scope.split(" ").forEach((x) => roles.add(x));
+    }
+
+    // a veces viene en "role"
+    if (claims.role) roles.add(String(claims.role));
+
+    // filtra vacíos
+    return [...roles].filter(Boolean);
+  }
+
+  function isAdminByRoles(roleList) {
+    return roleList.some((r) => r.includes("ROLE_ADMIN") || r === "ADMIN");
+  }
+
+  function setViews(mode) {
+    // mode: "login" | "user" | "admin"
+    el.viewLogin.classList.toggle("d-none", mode !== "login");
+    el.viewUser.classList.toggle("d-none", mode !== "user");
+    el.viewAdmin.classList.toggle("d-none", mode !== "admin");
+
+    el.btnLogout.disabled = mode === "login";
+  }
+
+  function updateTokenUI() {
+    el.jwt.textContent = token || "";
+    const claims = token ? decodeJwtPayload(token) : null;
+    el.claims.textContent = claims ? JSON.stringify(claims, null, 2) : "";
+  }
+
+  function clearAdminPanels() {
+    el.adminTables.classList.add("d-none");
+    el.usersSection.classList.add("d-none");
+    el.resourceSection.classList.add("d-none");
+    el.librosSectionAdmin.classList.add("d-none");
+    el.usersTbody.innerHTML = "";
+    el.resourceBox.textContent = "";
+    el.librosTbodyAdmin.innerHTML = "";
+  }
+
+  function clearUserTable() {
+    el.librosTbody.innerHTML = "";
+    el.librosMeta.textContent = "";
+    el.btnPrev.disabled = true;
+    el.btnNext.disabled = true;
+  }
+
+  // ----------------------------
+  // HTTP
+  // ----------------------------
+  async function request(path, { method = "GET", body = null, auth = true } = {}) {
+    const url = apiBase() + path;
+    const headers = {};
+    if (body != null) headers["Content-Type"] = "application/json";
+    if (auth && token) headers["Authorization"] = `Bearer ${token}`;
+
+    const res = await fetch(url, {
+      method,
+      headers,
+      body: body != null ? JSON.stringify(body) : null,
+    });
+
+    const ct = res.headers.get("content-type") || "";
+    let data;
+    if (ct.includes("application/json")) data = await res.json().catch(() => null);
+    else data = await res.text().catch(() => "");
+
+    if (!res.ok) {
+      const details = typeof data === "string" ? data : JSON.stringify(data);
+      throw new Error(`${res.status} ${res.statusText}${details ? " — " + details : ""}`);
+    }
+    return data;
+  }
+
+  // ----------------------------
+  // Core: decide vista según rol
+  // ----------------------------
+  async function routeAfterLogin() {
+    updateTokenUI();
+    setBadge("Conectado", true);
+
+    const claims = decodeJwtPayload(token);
+    const roles = extractRolesFromClaims(claims);
+    const adminFromJwt = isAdminByRoles(roles);
+
+    // Si ya lo sabemos por JWT
+    if (adminFromJwt) {
+      setViews("admin");
+      setOut({ info: "Modo ADMIN (por JWT)", roles });
+      hideAlert(el.alert);
+      hideAlert(el.alert2);
+      await adminRefresh();
+      return;
+    }
+
+    // Fallback: probar endpoint admin
+    try {
+      await request("/api/v1/users", { method: "GET" }); // si entra, es admin
+      setViews("admin");
+      setOut({ info: "Modo ADMIN (por prueba /users)", roles });
+      await adminRefresh();
+    } catch (e) {
+      // 403 => no admin => user
+      setViews("user");
+      setOut({ info: "Modo USER", roles, note: "Si /users da 403 es normal en USER." });
+      await loadLibros(0, "user");
+    }
+  }
+
+  // ----------------------------
+  // Login
+  // ----------------------------
+  async function login() {
+    hideAlert(el.alert);
+    hideAlert(el.alert2);
+
+    const email = el.email.value.trim();
+    const password = el.password.value;
+
+    if (!email || !password) {
+      showAlert(el.alert, "warning", "Rellena email y password.");
+      return;
+    }
+
+    try {
+      const data = await request("/api/v1/auth/signin", {
+        method: "POST",
+        auth: false,
+        body: { email, password },
+      });
+
+      const t = data?.token || data?.jwt || data?.accessToken || data?.access_token;
+      if (!t) throw new Error("Respuesta sin token (token/jwt/accessToken).");
+
+      token = t;
+      updateTokenUI();
+      await routeAfterLogin();
+    } catch (e) {
+      token = null;
+      updateTokenUI();
+      setViews("login");
+      setBadge("Desconectado", false);
+      showAlert(el.alert, "danger", `Login fallido: ${e.message}`);
+    }
+  }
+
+  function logout() {
+    token = null;
+    updateTokenUI();
+    setViews("login");
+    setBadge("Desconectado", false);
+    clearUserTable();
+    clearAdminPanels();
+    setOut("");
+  }
+
+  // ----------------------------
+  // USER: libros
+  // ----------------------------
+  async function loadLibros(page = 0, target = "user") {
+    if (!token) return;
+    hideAlert(el.alert);
+    hideAlert(el.alert2);
+
+    try {
+      const data = await request(`/api/v1/libros?page=${page}&size=${librosSize}`, { method: "GET" });
+      const content = Array.isArray(data?.content) ? data.content : [];
+      librosPage = Number.isFinite(data?.number) ? data.number : page;
+      librosTotalPages = Number.isFinite(data?.totalPages) ? data.totalPages : 0;
+
+      if (target === "user") {
+        el.librosTbody.innerHTML = content.map((l) => `
+          <tr>
+            <td>${l?.id ?? ""}</td>
+            <td>${escapeHtml(l?.titulo ?? "")}</td>
+            <td>${escapeHtml(l?.autor ?? "")}</td>
+            <td class="mono">${escapeHtml(l?.isbn ?? "")}</td>
+          </tr>
+        `).join("");
+
+        el.librosMeta.textContent = `Página ${librosPage + 1}/${Math.max(librosTotalPages, 1)} · ${data?.totalElements ?? "?"} elementos`;
+        el.btnPrev.disabled = librosPage <= 0;
+        el.btnNext.disabled = librosTotalPages ? (librosPage >= librosTotalPages - 1) : true;
+      } else {
+        // admin table
+        el.adminTables.classList.remove("d-none");
+        el.librosSectionAdmin.classList.remove("d-none");
+        el.librosTbodyAdmin.innerHTML = content.map((l) => `
+          <tr>
+            <td>${l?.id ?? ""}</td>
+            <td>${escapeHtml(l?.titulo ?? "")}</td>
+            <td>${escapeHtml(l?.autor ?? "")}</td>
+            <td class="mono">${escapeHtml(l?.isbn ?? "")}</td>
+          </tr>
+        `).join("");
+      }
+
+      setOut(data);
+    } catch (e) {
+      const node = (target === "user") ? el.alert : el.alert2;
+      showAlert(node, "danger", `Error /libros: ${e.message}`);
+      setOut({ error: e.message });
+    }
+  }
+
+  // ----------------------------
+  // ADMIN: dashboard
+  // ----------------------------
+  async function adminRefresh() {
+    // por defecto: enseñar libros
+    clearAdminPanels();
+    await loadLibros(0, "admin");
+  }
+
+  async function adminUsers() {
+    clearAdminPanels();
+    hideAlert(el.alert2);
+
+    try {
+      const data = await request("/api/v1/users", { method: "GET" });
+      const list = Array.isArray(data) ? data : [];
+
+      el.adminTables.classList.remove("d-none");
+      el.usersSection.classList.remove("d-none");
+      el.usersTbody.innerHTML = list.map((u) => {
+        const roles = Array.isArray(u?.roles) ? u.roles.join(", ") : "";
+        return `
+          <tr>
+            <td>${u?.id ?? ""}</td>
+            <td>${escapeHtml(u?.email ?? "")}</td>
+            <td>${escapeHtml(u?.nombre ?? "")}</td>
+            <td class="mono">${escapeHtml(roles)}</td>
+          </tr>
+        `;
+      }).join("");
+
+      setOut(data);
+    } catch (e) {
+      showAlert(el.alert2, "danger", `Error /users: ${e.message}`);
+      setOut({ error: e.message });
+    }
+  }
+
+  async function adminResource() {
+    clearAdminPanels();
+    hideAlert(el.alert2);
+
+    try {
+      const data = await request("/api/v1/resources", { method: "GET" });
+
+      el.adminTables.classList.remove("d-none");
+      el.resourceSection.classList.remove("d-none");
+      el.resourceBox.textContent = (typeof data === "string") ? data : JSON.stringify(data, null, 2);
+
+      setOut(data);
+    } catch (e) {
+      showAlert(el.alert2, "danger", `Error /resources: ${e.message}`);
+      setOut({ error: e.message });
+    }
+  }
+
+  async function adminCreateLibro() {
+    hideAlert(el.alert2);
+
+    const titulo = (el.newTitulo.value || "").trim();
+    const autor = (el.newAutor.value || "").trim();
+    const isbn = (el.newIsbn.value || "").trim();
+
+    if (!titulo || !autor || !isbn) {
+      showAlert(el.alert2, "warning", "Rellena título, autor e ISBN.");
+      return;
+    }
+
+    try {
+      const created = await request("/api/v1/libros", {
+        method: "POST",
+        body: { titulo, autor, isbn },
+      });
+      setOut(created);
+      showAlert(el.alert2, "success", "Libro creado. Recargando lista...");
+      await loadLibros(0, "admin");
+    } catch (e) {
+      showAlert(el.alert2, "danger", `Error creando libro: ${e.message}`);
+      setOut({ error: e.message });
+    }
+  }
+
+  // ----------------------------
+  // UI preset: Alice / Bob
+  // ----------------------------
+  el.btnFill.addEventListener("click", () => {
+    const p = el.preset.value;
+    if (p === "user") {
+      el.email.value = "alice.johnson@example.com";
+      el.password.value = "password123";
+    } else if (p === "admin") {
+      el.email.value = "bob.smith@example.com";
+      el.password.value = "password456";
+    }
   });
 
-  const text = await res.text();
-  let data = null;
-  try { data = text ? JSON.parse(text) : null; } catch { data = text; }
+  el.btnLogin.addEventListener("click", login);
+  el.btnLogout.addEventListener("click", logout);
 
-  if (!res.ok) {
-    const msg = typeof data === "string" ? data : (data?.message || data?.error || JSON.stringify(data));
-    throw new Error(`${res.status} ${res.statusText} — ${msg}`);
-  }
-  return data;
-}
+  // USER paging
+  el.btnPrev.addEventListener("click", () => loadLibros(Math.max(0, librosPage - 1), "user"));
+  el.btnNext.addEventListener("click", () => loadLibros(librosPage + 1, "user"));
+  el.btnUserRefresh.addEventListener("click", () => loadLibros(librosPage, "user"));
 
-// ====== Render ======
-function showRaw(json) {
-  lastJson = json;
-  $("out").textContent = json ? JSON.stringify(json, null, 2) : "";
-}
+  // ADMIN actions
+  el.btnAdminRefresh.addEventListener("click", adminRefresh);
+  el.btnAdminUsers.addEventListener("click", adminUsers);
+  el.btnAdminLibros.addEventListener("click", () => loadLibros(0, "admin"));
+  el.btnAdminResource.addEventListener("click", adminResource);
+  el.btnCreateLibro.addEventListener("click", adminCreateLibro);
 
-function showSection(sectionId) {
-  $("tables").classList.remove("d-none");
-  $("librosSection").classList.add("d-none");
-  $("usersSection").classList.add("d-none");
-  $("resourceSection").classList.add("d-none");
-  $(sectionId).classList.remove("d-none");
-}
-
-function clearTables() {
-  $("tables").classList.add("d-none");
-  $("librosTbody").innerHTML = "";
-  $("usersTbody").innerHTML = "";
-  $("resourceBox").textContent = "";
-  $("librosMeta").textContent = "";
-}
-
-function renderLibros(pageObj) {
-  // Spring Page<Libro> típico: { content:[], number, size, totalElements, totalPages, ... }
-  const rows = pageObj?.content ?? [];
-  librosPage = pageObj?.number ?? 0;
-  librosTotalPages = pageObj?.totalPages ?? 0;
-
-  $("librosTbody").innerHTML = rows.map(l => `
-    <tr>
-      <td class="mono">${l.id ?? ""}</td>
-      <td>${escapeHtml(l.titulo ?? l.title ?? "")}</td>
-      <td>${escapeHtml(l.autor ?? l.author ?? "")}</td>
-      <td class="text-end mono">${l.anioPublicacion ?? l.anio ?? l.year ?? ""}</td>
-    </tr>
-  `).join("");
-
-  $("librosMeta").textContent =
-    `Página ${librosPage + 1} / ${librosTotalPages} · Total: ${pageObj?.totalElements ?? rows.length}`;
-
-  $("btnPrev").disabled = librosPage <= 0;
-  $("btnNext").disabled = librosPage >= librosTotalPages - 1 || librosTotalPages === 0;
-
-  showSection("librosSection");
-}
-
-function renderUsers(users) {
-  $("usersTbody").innerHTML = (users || []).map(u => `
-    <tr>
-      <td class="mono">${u.id ?? ""}</td>
-      <td class="mono">${escapeHtml(u.email ?? "")}</td>
-      <td>${escapeHtml(u.nombre ?? u.name ?? "")}</td>
-      <td class="mono">${escapeHtml(formatRoles(u.roles ?? u.authorities ?? u.role ?? ""))}</td>
-    </tr>
-  `).join("");
-
-  showSection("usersSection");
-}
-
-function renderResource(textOrObj) {
-  $("resourceBox").textContent = typeof textOrObj === "string" ? textOrObj : JSON.stringify(textOrObj, null, 2);
-  showSection("resourceSection");
-}
-
-function escapeHtml(str) {
-  return String(str).replace(/[&<>"']/g, s => ({
-    "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"
-  }[s]));
-}
-
-function formatRoles(r) {
-  if (Array.isArray(r)) return r.join(", ");
-  if (typeof r === "object" && r) return JSON.stringify(r);
-  return String(r);
-}
-
-function setAdminButtonFromToken() {
-  // Heurística simple: si el payload contiene ROLE_ADMIN, habilitamos /users
-  const claims = decodeJwtClaims(JWT || "");
-  const isAdmin = claims.includes("ROLE_ADMIN");
-  $("btnUsers").disabled = !isAdmin;
-  const info = isAdmin ? "Conectado (ADMIN)" : "Conectado";
-  setSession(true, info);
-}
-
-// ====== Acciones ======
-async function login() {
-  clearAlert();
-  clearTables();
-  showRaw(null);
-  setSubtitle("Conectando...");
-
-  const email = $("email").value.trim();
-  const password = $("password").value;
-
-  const data = await requestJson(v1("/auth/signin"), {
-    method: "POST",
-    body: { email, password },
-    auth: false
+  // Copy / clear
+  el.btnCopy.addEventListener("click", async () => {
+    try {
+      await navigator.clipboard.writeText(lastText || "");
+      showAlert(el.alert2, "success", "Copiado al portapapeles.");
+      setTimeout(() => hideAlert(el.alert2), 1200);
+    } catch {
+      showAlert(el.alert2, "warning", "No se pudo copiar (permiso del navegador).");
+    }
   });
 
-  // Ajusta según tu DTO: JwtAuthenticationResponse
-  JWT = data?.token || data?.jwt || data?.accessToken || data?.access_token || null;
+  el.btnClear.addEventListener("click", () => {
+    hideAlert(el.alert2);
+    setOut("");
+    clearAdminPanels();
+  });
 
-  if (!JWT) {
-    throw new Error("Respuesta sin token. Revisa el nombre del campo (token/jwt/accessToken).");
-  }
+  // Enter = login
+  el.password.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") login();
+  });
 
-  setJwtUI(JWT);
-  setAdminButtonFromToken();
+  // Init
+  setViews("login");
+  setBadge("Desconectado", false);
+  el.preset.value = "user";
+  el.btnFill.click();
+})();
 
-  setAlert("success", "Login correcto. Token guardado en memoria.");
-  setSubtitle("Elige una acción: /libros, /users (admin) o /resources.");
-  showRaw(data);
-}
-
-function logout() {
-  JWT = null;
-  lastJson = null;
-  librosPage = 0;
-  librosTotalPages = 0;
-  setJwtUI("");
-  setSession(false);
-  clearTables();
-  clearAlert();
-  showRaw(null);
-  setSubtitle("Sesión cerrada.");
-}
-
-async function loadLibros(page = 0) {
-  clearAlert();
-  clearTables();
-  setSubtitle("Cargando libros...");
-
-  const url = v1(`/libros?page=${page}&size=${librosSize}`);
-  const data = await requestJson(url);
-
-  showRaw(data);
-  renderLibros(data);
-  setSubtitle("Tabla de libros cargada correctamente.");
-}
-
-async function loadUsers() {
-  clearAlert();
-  clearTables();
-  setSubtitle("Cargando usuarios (admin)...");
-
-  const data = await requestJson(v1("/users"));
-  showRaw(data);
-  renderUsers(data);
-  setSubtitle("Tabla de usuarios cargada.");
-}
-
-async function loadResources() {
-  clearAlert();
-  clearTables();
-  setSubtitle("Cargando recurso protegido...");
-
-  const data = await requestJson(v1("/resources"));
-  showRaw(data);
-  renderResource(data);
-  setSubtitle("Recurso cargado.");
-}
-
-// ====== UI events ======
-$("btnLogin").addEventListener("click", async () => {
-  try { await login(); }
-  catch (e) { setAlert("danger", e.message); setSubtitle("Error de login."); }
-});
-
-$("btnLogout").addEventListener("click", () => logout());
-
-$("btnLibros").addEventListener("click", async () => {
-  try { await loadLibros(0); }
-  catch (e) { setAlert("danger", e.message); }
-});
-
-$("btnUsers").addEventListener("click", async () => {
-  try { await loadUsers(); }
-  catch (e) { setAlert("danger", e.message); }
-});
-
-$("btnResources").addEventListener("click", async () => {
-  try { await loadResources(); }
-  catch (e) { setAlert("danger", e.message); }
-});
-
-$("btnPrev").addEventListener("click", async () => {
-  try { await loadLibros(librosPage - 1); }
-  catch (e) { setAlert("danger", e.message); }
-});
-
-$("btnNext").addEventListener("click", async () => {
-  try { await loadLibros(librosPage + 1); }
-  catch (e) { setAlert("danger", e.message); }
-});
-
-$("btnClear").addEventListener("click", () => {
-  clearAlert();
-  clearTables();
-  showRaw(null);
-  setSubtitle("Salida limpiada.");
-});
-
-$("btnCopy").addEventListener("click", async () => {
-  try {
-    await navigator.clipboard.writeText($("out").textContent || "");
-    setAlert("success", "JSON copiado al portapapeles.");
-  } catch {
-    setAlert("warning", "No se pudo copiar (permiso del navegador).");
-  }
-});
-
-$("btnFill").addEventListener("click", () => {
-  const v = $("preset").value;
-  if (v === "user") {
-    $("email").value = "alice.johnson@example.com";
-    $("password").value = "password123";
-  } else if (v === "admin") {
-    $("email").value = "admin@example.com";
-    $("password").value = "admin123";
-  }
-});
-
-// Estado inicial
-setSession(false);
-setJwtUI("");
-setSubtitle("Introduce la URL del backend, elige rol (opcional) y haz login.");

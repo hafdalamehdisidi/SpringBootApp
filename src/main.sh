@@ -1,220 +1,271 @@
 #!/usr/bin/env bash
+# Fuerza bash aunque el usuario ejecute con sh:
+if [ -z "${BASH_VERSION:-}" ]; then exec /usr/bin/env bash "$0" "$@"; fi
 set -euo pipefail
 
 # ============================================
-# SpringBootApp - Script principal (educativo)
-# Backend: Spring Boot + MySQL + JWT
-# Backend port: 9091
-# Backend path: ./Backend/API_SEGURITY_EXAMPLE
-# Frontend: estático (Bootstrap) servido con Python
-# OpenAPI: docs/api/openapi.yaml (Swagger UI / Editor via Docker)
+# SpringBootApp - main.sh (ruta fija de backend)
+#
+# Estructura fija:
+#   SpringBootApp/
+#     docs/api/openapi.yaml
+#     src/
+#       Backend/API_SEGURITY_EXAMPLE/   <-- SIEMPRE AQUÍ
+#       Frontend/
+#
+# Comandos:
+#   ./main.sh up-all        -> MySQL + Backend(demo) + Frontend + Swagger UI
+#   ./main.sh down-all      -> apaga todo
+#   ./main.sh demo          -> backend demo foreground
+#   ./main.sh status        -> estado
 # ============================================
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-BACKEND_DIR="${ROOT_DIR}/Backend/API_SEGURITY_EXAMPLE"
-FRONTEND_DIR="${ROOT_DIR}/Frontend"
-OPENAPI_DIR="${ROOT_DIR}/docs/api"
+# --------- Colores ----------
+GREEN="\033[0;32m"; YELLOW="\033[0;33m"; RED="\033[0;31m"; BLUE="\033[0;34m"; RESET="\033[0m"
+say(){  echo -e "${BLUE}==>${RESET} $*"; }
+ok(){   echo -e "${GREEN}✔${RESET} $*"; }
+warn(){ echo -e "${YELLOW}⚠${RESET} $*"; }
+err(){  echo -e "${RED}✖${RESET} $*" >&2; }
+
+need_cmd(){ command -v "$1" >/dev/null 2>&1 || { err "No existe el comando: $1"; exit 1; }; }
+need_dir(){ [[ -d "$1" ]] || { err "No existe el directorio: $1"; exit 1; }; }
+need_file(){ [[ -f "$1" ]] || { err "No existe el fichero: $1"; exit 1; }; }
+
+docker_running(){ docker ps --format '{{.Names}}' | grep -qx "$1"; }
+
+wait_for_port() {
+  local port="$1" name="${2:-servicio}" tries="${3:-40}"
+  local i=0
+  while (( i < tries )); do
+    if (exec 3<>/dev/tcp/127.0.0.1/"$port") 2>/dev/null; then
+      exec 3<&- 3>&-
+      ok "$name escuchando en $port"
+      return 0
+    fi
+    sleep 0.5
+    ((i++))
+  done
+  return 1
+}
+
+# --------- Paths ----------
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"   # .../SpringBootApp/src
+APP_DIR="$SCRIPT_DIR"
+PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"                 # .../SpringBootApp
+
+BACKEND_DIR="${APP_DIR}/Backend/API_SEGURITY_EXAMPLE"
+FRONTEND_DIR="${APP_DIR}/Frontend"
+OPENAPI_DIR="${PROJECT_DIR}/docs/api"
 OPENAPI_FILE="${OPENAPI_DIR}/openapi.yaml"
 
-# Defaults
+# --------- Defaults ----------
 BACKEND_PORT_DEFAULT="9091"
 FRONTEND_PORT_DEFAULT="8081"
-
-# OpenAPI viewers
 OPENAPI_UI_PORT_DEFAULT="8083"
-OPENAPI_EDITOR_PORT_DEFAULT="8082"
+
+# --------- PIDs / Logs (raíz del proyecto) ----------
+BACKEND_PID_FILE="${PROJECT_DIR}/.backend.pid"
+BACKEND_LOG_FILE="${PROJECT_DIR}/backend.log"
+FRONTEND_PID_FILE="${PROJECT_DIR}/.frontend.pid"
+FRONTEND_LOG_FILE="${PROJECT_DIR}/frontend.log"
+
+# --------- MySQL docker run ----------
+MYSQL_CONTAINER="springbootapp-mysql"
+MYSQL_IMAGE="mysql:8"
+MYSQL_PORT="${MYSQL_PORT:-3306}"
+MYSQL_ROOT_PASSWORD="${MYSQL_ROOT_PASSWORD:-root}"
+MYSQL_DATABASE="${MYSQL_DATABASE:-springbootapp}"
+MYSQL_USER="${MYSQL_USER:-app}"
+MYSQL_PASSWORD="${MYSQL_PASSWORD:-app}"
+
+# --------- Swagger UI ----------
 OPENAPI_UI_CONTAINER="springbootapp-openapi-ui"
-OPENAPI_EDITOR_CONTAINER="springbootapp-openapi-editor"
 
-# Frontend background management
-FRONTEND_PID_FILE="${ROOT_DIR}/.frontend.pid"
-FRONTEND_LOG_FILE="${ROOT_DIR}/frontend.log"
+# -------------------------
+# Validaciones backend (ruta fija)
+# -------------------------
+check_backend() {
+  need_dir "$BACKEND_DIR"
 
-# Colors
-GREEN="\033[0;32m"
-YELLOW="\033[0;33m"
-RED="\033[0;31m"
-BLUE="\033[0;34m"
-RESET="\033[0m"
+  if [[ ! -f "$BACKEND_DIR/pom.xml" ]]; then
+    err "Falta pom.xml en: $BACKEND_DIR"
+    err "Tu backend debe estar completo (Maven/Spring Boot) dentro de esa carpeta."
+    exit 1
+  fi
 
-say() { echo -e "${BLUE}==>${RESET} $*"; }
-ok()  { echo -e "${GREEN}✔${RESET} $*"; }
-warn(){ echo -e "${YELLOW}⚠${RESET} $*"; }
-err() { echo -e "${RED}✖${RESET} $*" >&2; }
-
-need_dir() {
-  if [[ ! -d "$1" ]]; then
-    err "No existe el directorio: $1"
+  if [[ ! -d "$BACKEND_DIR/src/main/java" ]]; then
+    err "Falta src/main/java en: $BACKEND_DIR"
+    err "Parece que no está el código fuente del backend."
     exit 1
   fi
 }
 
-need_file() {
-  if [[ ! -f "$1" ]]; then
-    err "No existe el fichero: $1"
-    exit 1
+# -------------------------
+# Maven (mvnw o mvn)
+# -------------------------
+maven_build() {
+  check_backend
+  if [[ -f "$BACKEND_DIR/mvnw" ]]; then
+    (cd "$BACKEND_DIR" && chmod +x mvnw && ./mvnw -DskipTests clean package)
+  else
+    need_cmd mvn
+    (cd "$BACKEND_DIR" && mvn -DskipTests clean package)
   fi
 }
 
-docker_running() {
-  docker ps --format '{{.Names}}' | grep -qx "$1"
+pick_jar() {
+  local jar
+  jar="$(ls -1 "$BACKEND_DIR"/target/*.jar 2>/dev/null | grep -v '\-plain\.jar$' | head -n 1 || true)"
+  [[ -n "$jar" ]] || { err "No se encontró ningún .jar en $BACKEND_DIR/target. ¿Falló el build?"; exit 1; }
+  echo "$jar"
 }
 
 # -------------------------
-# Docker: MySQL solo
+# MySQL
 # -------------------------
-docker_db_up() {
-  need_dir "$BACKEND_DIR"
-  say "Levantando SOLO MySQL (Docker)..."
-  (cd "$BACKEND_DIR" && docker compose up -d mysql)
-  ok "MySQL debería estar en localhost:3306 (si el compose publica 3306:3306)"
+mysql_up() {
+  need_cmd docker
+
+  if docker ps --format '{{.Names}}' | grep -qx "$MYSQL_CONTAINER"; then
+    ok "MySQL ya está corriendo: $MYSQL_CONTAINER (localhost:${MYSQL_PORT})"
+    return 0
+  fi
+
+  if docker ps -a --format '{{.Names}}' | grep -qx "$MYSQL_CONTAINER"; then
+    say "Arrancando MySQL existente (docker start)..."
+    docker start "$MYSQL_CONTAINER" >/dev/null
+    ok "MySQL arrancado: $MYSQL_CONTAINER (localhost:${MYSQL_PORT})"
+    return 0
+  fi
+
+  say "Creando y levantando MySQL con docker run..."
+  docker run -d --name "$MYSQL_CONTAINER" \
+    -p "${MYSQL_PORT}:3306" \
+    -e MYSQL_ROOT_PASSWORD="$MYSQL_ROOT_PASSWORD" \
+    -e MYSQL_DATABASE="$MYSQL_DATABASE" \
+    -e MYSQL_USER="$MYSQL_USER" \
+    -e MYSQL_PASSWORD="$MYSQL_PASSWORD" \
+    "$MYSQL_IMAGE" >/dev/null
+
+  ok "MySQL listo: localhost:${MYSQL_PORT}"
+  warn "DB=${MYSQL_DATABASE} USER=${MYSQL_USER} PASS=${MYSQL_PASSWORD} ROOTPASS=${MYSQL_ROOT_PASSWORD}"
 }
 
-docker_db_down() {
-  need_dir "$BACKEND_DIR"
-  say "Parando SOLO MySQL (Docker)..."
-  (cd "$BACKEND_DIR" && docker compose stop mysql)
-  ok "MySQL detenido"
-}
-
-# -------------------------
-# Docker: stack completo
-# -------------------------
-docker_up() {
-  need_dir "$BACKEND_DIR"
-  say "Levantando Docker (backend + mysql) desde: $BACKEND_DIR"
-  (cd "$BACKEND_DIR" && docker compose up --build)
-}
-
-docker_up_bg() {
-  need_dir "$BACKEND_DIR"
-  say "Levantando Docker (backend + mysql) en background (-d) desde: $BACKEND_DIR"
-  (cd "$BACKEND_DIR" && docker compose up -d --build)
-  ok "Docker levantado en background"
-  ok "Backend debería estar en http://localhost:${BACKEND_PORT_DEFAULT}"
-}
-
-docker_down() {
-  need_dir "$BACKEND_DIR"
-  say "Parando contenedores (docker compose down) desde: $BACKEND_DIR"
-  (cd "$BACKEND_DIR" && docker compose down)
-  ok "Contenedores detenidos"
-}
-
-docker_logs() {
-  need_dir "$BACKEND_DIR"
-  say "Logs de Docker (Ctrl+C para salir)"
-  (cd "$BACKEND_DIR" && docker compose logs -f --tail=200)
-}
-
-docker_reset() {
-  need_dir "$BACKEND_DIR"
-  warn "Esto borra volúmenes (base de datos incluida)."
-  say "Reseteando Docker: down -v + build + up"
-  (cd "$BACKEND_DIR" && docker compose down -v)
-  (cd "$BACKEND_DIR" && docker compose up --build)
+mysql_down() {
+  need_cmd docker
+  if docker ps --format '{{.Names}}' | grep -qx "$MYSQL_CONTAINER"; then
+    say "Parando MySQL: $MYSQL_CONTAINER"
+    docker stop "$MYSQL_CONTAINER" >/dev/null
+    ok "MySQL detenido"
+  else
+    warn "MySQL no estaba corriendo: $MYSQL_CONTAINER"
+  fi
 }
 
 # -------------------------
-# Local (sin Docker)
+# Backend (demo)
 # -------------------------
-local_build() {
-  need_dir "$BACKEND_DIR"
-  say "Compilando en local con Maven Wrapper (sin Docker)"
-  (cd "$BACKEND_DIR" && chmod +x mvnw && ./mvnw -DskipTests clean package)
-  ok "Build local completado"
+backend_stop() {
+  if [[ -f "$BACKEND_PID_FILE" ]]; then
+    local pid; pid="$(cat "$BACKEND_PID_FILE")"
+    say "Parando backend (PID ${pid})..."
+    kill "$pid" 2>/dev/null || true
+    rm -f "$BACKEND_PID_FILE"
+    ok "Backend detenido"
+  else
+    warn "No hay PID de backend (${BACKEND_PID_FILE})."
+  fi
 }
 
-local_run() {
-  need_dir "$BACKEND_DIR"
+backend_log() {
+  [[ -f "$BACKEND_LOG_FILE" ]] && tail -f "$BACKEND_LOG_FILE" || warn "No existe el log: $BACKEND_LOG_FILE"
+}
+
+backend_start_bg_demo() {
+  check_backend
   local port="${1:-$BACKEND_PORT_DEFAULT}"
 
-  say "Arrancando Spring Boot en local (sin Docker) en puerto ${port}"
-  warn "Asegúrate de tener MySQL local en localhost:3306 o usa: ./main.sh db-up"
+  backend_stop || true
 
-  export SERVER_PORT="$port"
-  (cd "$BACKEND_DIR" && chmod +x mvnw && ./mvnw spring-boot:run)
+  say "Build backend (Maven) ..."
+  maven_build
+
+  local jar; jar="$(pick_jar)"
+  say "Levantando BACKEND (demo) en background: puerto ${port}"
+  say "Jar : $jar"
+  say "Log : $BACKEND_LOG_FILE"
+  say "URL : http://localhost:${port}"
+
+  nohup bash -c "exec java -jar \"$jar\" --spring.profiles.active=demo --server.port=${port}" \
+    >"$BACKEND_LOG_FILE" 2>&1 &
+
+  echo $! > "$BACKEND_PID_FILE"
+  ok "Backend PID: $(cat "$BACKEND_PID_FILE")"
+
+  if ! wait_for_port "$port" "Backend" 60; then
+    warn "El backend NO abrió el puerto ${port}. Mira el log:"
+    tail -n 200 "$BACKEND_LOG_FILE" || true
+    exit 1
+  fi
 }
 
-local_run_profile() {
-  need_dir "$BACKEND_DIR"
-  local profile="${1:-demo}"
-  local port="${2:-$BACKEND_PORT_DEFAULT}"
-
-  say "Arrancando Spring Boot en local con perfil '${profile}' en puerto ${port}"
-  warn "Si MySQL no está en localhost:3306, usa: ./main.sh db-up (Docker) o ajusta datasource."
-
-  export SPRING_PROFILES_ACTIVE="$profile"
-  export SERVER_PORT="$port"
-  (cd "$BACKEND_DIR" && chmod +x mvnw && ./mvnw spring-boot:run)
+demo_fg() {
+  check_backend
+  local port="${1:-$BACKEND_PORT_DEFAULT}"
+  say "Arrancando BACKEND (demo) en foreground: puerto ${port}"
+  mysql_up || true
+  maven_build
+  local jar; jar="$(pick_jar)"
+  exec java -jar "$jar" --spring.profiles.active=demo --server.port="$port"
 }
 
 # -------------------------
-# Frontend (python server)
+# Frontend
 # -------------------------
-frontend_up() {
-  need_dir "$FRONTEND_DIR"
-  local port="${1:-$FRONTEND_PORT_DEFAULT}"
+frontend_stop() {
+  if [[ -f "$FRONTEND_PID_FILE" ]]; then
+    local pid; pid="$(cat "$FRONTEND_PID_FILE")"
+    say "Parando frontend (PID ${pid})..."
+    kill "$pid" 2>/dev/null || true
+    rm -f "$FRONTEND_PID_FILE"
+    ok "Frontend detenido"
+  else
+    warn "No hay PID de frontend (${FRONTEND_PID_FILE})."
+  fi
+}
 
-  say "Levantando frontend estático con Python en: $FRONTEND_DIR"
-  say "URL: http://localhost:${port}"
-  warn "Pulsa Ctrl+C para detener el servidor"
-
-  (cd "$FRONTEND_DIR" && python3 -m http.server "$port")
+frontend_log() {
+  [[ -f "$FRONTEND_LOG_FILE" ]] && tail -f "$FRONTEND_LOG_FILE" || warn "No existe el log: $FRONTEND_LOG_FILE"
 }
 
 frontend_start_bg() {
   need_dir "$FRONTEND_DIR"
   local port="${1:-$FRONTEND_PORT_DEFAULT}"
 
-  # Stop previous instance if any
-  if [[ -f "$FRONTEND_PID_FILE" ]]; then
-    frontend_stop || true
-  fi
+  frontend_stop || true
 
-  say "Levantando frontend en background (python http.server) en puerto ${port}"
-  say "URL: http://localhost:${port}"
+  say "Levantando FRONTEND en background (python http.server) puerto ${port}"
+  say "Log : $FRONTEND_LOG_FILE"
+  say "URL : http://localhost:${port}"
+
   nohup bash -c "cd \"$FRONTEND_DIR\" && python3 -m http.server \"$port\"" \
-    > "$FRONTEND_LOG_FILE" 2>&1 &
-
+    >"$FRONTEND_LOG_FILE" 2>&1 &
   echo $! > "$FRONTEND_PID_FILE"
   ok "Frontend PID: $(cat "$FRONTEND_PID_FILE")"
-  ok "Log: $FRONTEND_LOG_FILE"
-}
-
-frontend_stop() {
-  if [[ -f "$FRONTEND_PID_FILE" ]]; then
-    local pid
-    pid="$(cat "$FRONTEND_PID_FILE")"
-    say "Parando frontend (PID ${pid})..."
-    kill "$pid" 2>/dev/null || true
-    rm -f "$FRONTEND_PID_FILE"
-    ok "Frontend detenido"
-  else
-    warn "No hay PID de frontend (${FRONTEND_PID_FILE}). ¿Estaba levantado?"
-  fi
-}
-
-frontend_log() {
-  if [[ -f "$FRONTEND_LOG_FILE" ]]; then
-    tail -f "$FRONTEND_LOG_FILE"
-  else
-    warn "No existe el log: $FRONTEND_LOG_FILE"
-  fi
 }
 
 # -------------------------
-# OpenAPI (Swagger UI / Editor)
+# Swagger UI
 # -------------------------
 openapi_ui() {
+  need_cmd docker
   need_dir "$OPENAPI_DIR"
   need_file "$OPENAPI_FILE"
   local port="${1:-$OPENAPI_UI_PORT_DEFAULT}"
 
-  # Stop existing container if running
   if docker_running "$OPENAPI_UI_CONTAINER"; then
     warn "Swagger UI ya estaba ejecutándose. Reiniciando..."
-    docker rm -f "$OPENAPI_UI_CONTAINER" >/dev/null
+    docker rm -f "$OPENAPI_UI_CONTAINER" >/dev/null || true
   fi
 
   say "Levantando Swagger UI en http://localhost:${port}"
@@ -226,166 +277,93 @@ openapi_ui() {
     swaggerapi/swagger-ui >/dev/null
 
   ok "Swagger UI listo: http://localhost:${port}"
-  ok "Usando spec: ${OPENAPI_FILE}"
-}
-
-openapi_editor() {
-  local port="${1:-$OPENAPI_EDITOR_PORT_DEFAULT}"
-
-  if docker_running "$OPENAPI_EDITOR_CONTAINER"; then
-    warn "Swagger Editor ya estaba ejecutándose. Reiniciando..."
-    docker rm -f "$OPENAPI_EDITOR_CONTAINER" >/dev/null
-  fi
-
-  say "Levantando Swagger Editor en http://localhost:${port}"
-  docker run -d --rm \
-    --name "$OPENAPI_EDITOR_CONTAINER" \
-    -p "${port}:8080" \
-    swaggerapi/swagger-editor >/dev/null
-
-  ok "Swagger Editor listo: http://localhost:${port}"
-  warn "Pega/arrastra tu YAML (docs/api/openapi.yaml) dentro del editor."
+  ok "Spec: $OPENAPI_FILE"
 }
 
 openapi_stop() {
-  local stopped=false
+  need_cmd docker
   if docker_running "$OPENAPI_UI_CONTAINER"; then
     say "Parando Swagger UI..."
     docker rm -f "$OPENAPI_UI_CONTAINER" >/dev/null || true
-    stopped=true
-  fi
-  if docker_running "$OPENAPI_EDITOR_CONTAINER"; then
-    say "Parando Swagger Editor..."
-    docker rm -f "$OPENAPI_EDITOR_CONTAINER" >/dev/null || true
-    stopped=true
-  fi
-
-  if [[ "$stopped" == "true" ]]; then
-    ok "OpenAPI viewers detenidos"
+    ok "Swagger UI detenido"
   else
-    warn "No había viewers OpenAPI ejecutándose"
+    warn "Swagger UI no estaba ejecutándose"
   fi
 }
 
 # -------------------------
-# All-in-one: apagar y levantar todo
+# UP / DOWN
 # -------------------------
-reup() {
-  need_dir "$BACKEND_DIR"
-  say "Reiniciando stack Docker (backend + mysql)..."
-  (cd "$BACKEND_DIR" && docker compose down)
-  (cd "$BACKEND_DIR" && docker compose up -d --build)
-  ok "Docker reup completado"
-  ok "Backend: http://localhost:${BACKEND_PORT_DEFAULT}"
-}
-
-reup_all() {
+up_all() {
   local fport="${1:-$FRONTEND_PORT_DEFAULT}"
-  local oport="${2:-$OPENAPI_UI_PORT_DEFAULT}"
+  local uiport="${2:-$OPENAPI_UI_PORT_DEFAULT}"
+  local bport="${3:-$BACKEND_PORT_DEFAULT}"
 
-  say "Reiniciando TODO: Docker (backend+mysql) + frontend + Swagger UI"
-  frontend_stop || true
-  openapi_stop || true
-  reup
+  say "Levantando TODO: MySQL + Backend(demo) + Frontend + Swagger UI"
+  say "Puertos: backend=${bport} | frontend=${fport} | swagger-ui=${uiport}"
+
+  mysql_up
+  backend_start_bg_demo "$bport"
   frontend_start_bg "$fport"
-  openapi_ui "$oport"
+  openapi_ui "$uiport"
 
   ok "TODO levantado:"
-  ok "  Backend   : http://localhost:${BACKEND_PORT_DEFAULT}"
-  ok "  Frontend  : http://localhost:${fport}"
-  ok "  Swagger UI: http://localhost:${oport}"
+  ok "  Backend   : http://localhost:${bport} (demo) | log: $BACKEND_LOG_FILE"
+  ok "  Frontend  : http://localhost:${fport}       | log: $FRONTEND_LOG_FILE"
+  ok "  Swagger UI: http://localhost:${uiport}"
+  ok "  MySQL     : localhost:${MYSQL_PORT} (container: $MYSQL_CONTAINER)"
 }
 
 down_all() {
-  say "Apagando TODO: frontend + OpenAPI viewers + Docker"
+  say "Apagando TODO..."
+  backend_stop || true
   frontend_stop || true
   openapi_stop || true
-  docker_down
+  mysql_down || true
   ok "Todo apagado"
 }
 
-# -------------------------
-# Status / Help
-# -------------------------
 status() {
-  say "Estructura detectada:"
-  echo "  ROOT      : $ROOT_DIR"
+  say "Rutas:"
+  echo "  PROJECT   : $PROJECT_DIR"
   echo "  BACKEND   : $BACKEND_DIR"
   echo "  FRONTEND  : $FRONTEND_DIR"
   echo "  OPENAPI   : $OPENAPI_FILE"
-  echo "  B.PORT    : $BACKEND_PORT_DEFAULT"
-  echo "  F.PORT    : $FRONTEND_PORT_DEFAULT"
-  echo "  UI.PORT   : $OPENAPI_UI_PORT_DEFAULT"
-  echo "  EDIT.PORT : $OPENAPI_EDITOR_PORT_DEFAULT"
   echo
-
-  say "Docker containers (stack backend/mysql):"
-  (cd "$BACKEND_DIR" 2>/dev/null && docker compose ps) || warn "No se pudo ejecutar docker compose ps"
+  say "Defaults:"
+  echo "  BACKEND_PORT  : $BACKEND_PORT_DEFAULT"
+  echo "  FRONTEND_PORT : $FRONTEND_PORT_DEFAULT"
+  echo "  SWAGGER_UI    : $OPENAPI_UI_PORT_DEFAULT"
+  echo "  MYSQL_PORT    : $MYSQL_PORT"
   echo
-
-  if [[ -f "$FRONTEND_PID_FILE" ]]; then
-    say "Frontend (background): PID $(cat "$FRONTEND_PID_FILE") | log $FRONTEND_LOG_FILE"
-  else
-    say "Frontend (background): no está levantado"
-  fi
-  echo
-
-  say "OpenAPI viewers:"
-  if docker_running "$OPENAPI_UI_CONTAINER"; then
-    ok "Swagger UI: running (${OPENAPI_UI_CONTAINER})"
-  else
-    warn "Swagger UI: stopped"
-  fi
-  if docker_running "$OPENAPI_EDITOR_CONTAINER"; then
-    ok "Swagger Editor: running (${OPENAPI_EDITOR_CONTAINER})"
-  else
-    warn "Swagger Editor: stopped"
-  fi
+  say "Estado:"
+  [[ -f "$BACKEND_PID_FILE" ]] && ok "Backend BG PID: $(cat "$BACKEND_PID_FILE")" || warn "Backend BG: no"
+  [[ -f "$FRONTEND_PID_FILE" ]] && ok "Frontend BG PID: $(cat "$FRONTEND_PID_FILE")" || warn "Frontend BG: no"
+  docker_running "$OPENAPI_UI_CONTAINER" && ok "Swagger UI: running" || warn "Swagger UI: stopped"
+  docker ps --format '{{.Names}}' | grep -qx "$MYSQL_CONTAINER" && ok "MySQL: running" || warn "MySQL: stopped"
 }
 
 help_menu() {
   cat <<EOF
 Uso: ./main.sh <comando> [opciones]
 
-Docker:
-  docker-up                 Levanta backend + mysql (foreground)
-  docker-up-bg              Levanta backend + mysql (background -d)
-  docker-down               Para contenedores (docker compose down)
-  docker-logs               Sigue logs (tail)
-  docker-reset              Down -v (borra BD) y vuelve a levantar
-  db-up                     Levanta SOLO MySQL (docker compose up -d mysql)
-  db-down                   Para SOLO MySQL (docker compose stop mysql)
+TODO:
+  up-all [fport] [uiport] [bport]   Defaults: 8081 8083 9091
+  down-all
+  status
 
-Local (sin Docker):
-  build                     Compila (mvnw clean package)
-  run [puerto]              Ejecuta Spring Boot en local (default: ${BACKEND_PORT_DEFAULT})
-  run-profile <perfil> [p]  Ejecuta en local con perfil (ej: demo) y puerto opcional
+Backend:
+  demo [puerto]        Backend demo foreground (default 9091)
+  backend-log          Ver log del backend BG
+  backend-stop         Detener backend BG
 
 Frontend:
-  frontend [puerto]         Sirve ./Frontend con python (foreground)
-  frontend-bg [puerto]      Sirve ./Frontend con python (background)
-  frontend-stop             Detiene el frontend en background
-  frontend-log              Muestra logs del frontend en background
+  frontend-log         Ver log del frontend BG
+  frontend-stop        Detener frontend BG
 
-OpenAPI (Docs):
-  openapi-ui [puerto]       Levanta Swagger UI apuntando a docs/api/openapi.yaml (default: ${OPENAPI_UI_PORT_DEFAULT})
-  openapi-editor [puerto]   Levanta Swagger Editor (default: ${OPENAPI_EDITOR_PORT_DEFAULT})
-  openapi-stop              Detiene Swagger UI/Editor
-
-Todo:
-  reup                      Apaga y vuelve a levantar Docker (backend+mysql) en background
-  reup-all [fport] [uiport] Apaga y vuelve a levantar Docker + frontend + Swagger UI
-  down-all                  Apaga frontend, viewers OpenAPI y baja Docker
-
-Otros:
-  status                    Muestra rutas y estado docker/frontend/openapi
-  help                      Muestra esta ayuda
-
-Ejemplos:
-  ./main.sh openapi-ui
-  ./main.sh openapi-editor
-  ./main.sh reup-all
-  ./main.sh reup-all 8081 8083
+OpenAPI:
+  openapi-ui [puerto]  Swagger UI (default 8083)
+  openapi-stop         Detener Swagger UI
 EOF
 }
 
@@ -394,45 +372,22 @@ main() {
   shift || true
 
   case "$cmd" in
-    # Docker
-    docker-up)        docker_up ;;
-    docker-up-bg)     docker_up_bg ;;
-    docker-down)      docker_down ;;
-    docker-logs)      docker_logs ;;
-    docker-reset)     docker_reset ;;
-    db-up)            docker_db_up ;;
-    db-down)          docker_db_down ;;
+    up-all)        up_all "${1:-$FRONTEND_PORT_DEFAULT}" "${2:-$OPENAPI_UI_PORT_DEFAULT}" "${3:-$BACKEND_PORT_DEFAULT}" ;;
+    down-all)      down_all ;;
+    status)        status ;;
 
-    # Local
-    build)            local_build ;;
-    run)              local_run "${1:-$BACKEND_PORT_DEFAULT}" ;;
-    run-profile)      local_run_profile "${1:-demo}" "${2:-$BACKEND_PORT_DEFAULT}" ;;
+    demo)          demo_fg "${1:-$BACKEND_PORT_DEFAULT}" ;;
+    backend-log)   backend_log ;;
+    backend-stop)  backend_stop ;;
 
-    # Frontend
-    frontend)         frontend_up "${1:-$FRONTEND_PORT_DEFAULT}" ;;
-    frontend-bg)      frontend_start_bg "${1:-$FRONTEND_PORT_DEFAULT}" ;;
-    frontend-stop)    frontend_stop ;;
-    frontend-log)     frontend_log ;;
+    frontend-log)  frontend_log ;;
+    frontend-stop) frontend_stop ;;
 
-    # OpenAPI
-    openapi-ui)       openapi_ui "${1:-$OPENAPI_UI_PORT_DEFAULT}" ;;
-    openapi-editor)   openapi_editor "${1:-$OPENAPI_EDITOR_PORT_DEFAULT}" ;;
-    openapi-stop)     openapi_stop ;;
+    openapi-ui)    openapi_ui "${1:-$OPENAPI_UI_PORT_DEFAULT}" ;;
+    openapi-stop)  openapi_stop ;;
 
-    # All-in-one
-    reup)             reup ;;
-    reup-all)         reup_all "${1:-$FRONTEND_PORT_DEFAULT}" "${2:-$OPENAPI_UI_PORT_DEFAULT}" ;;
-    down-all)         down_all ;;
-
-    # Misc
-    status)           status ;;
-    help|--help|-h)   help_menu ;;
-    *)
-      err "Comando desconocido: $cmd"
-      echo
-      help_menu
-      exit 1
-      ;;
+    help|--help|-h|"") help_menu ;;
+    *) err "Comando desconocido: $cmd"; echo; help_menu; exit 1 ;;
   esac
 }
 

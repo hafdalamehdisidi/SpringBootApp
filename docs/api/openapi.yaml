@@ -1,0 +1,259 @@
+openapi: 3.0.3
+info:
+  title: API Security Example (DWES)
+  version: "1.0.0"
+  description: >
+    API educativa con Spring Boot, JWT y control de acceso por roles (ROLE_USER, ROLE_ADMIN).
+
+servers:
+  - url: http://localhost:9091
+    description: Local
+
+tags:
+  - name: Auth
+  - name: Libros
+  - name: Users
+  - name: Resources
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    SigninRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+          example: alice.johnson@example.com
+        password:
+          type: string
+          example: password123
+
+    JwtAuthenticationResponse:
+      type: object
+      properties:
+        token:
+          type: string
+          description: JWT Bearer token
+
+    Libro:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        titulo:
+          type: string
+        autor:
+          type: string
+        anioPublicacion:
+          type: integer
+          format: int32
+
+    PageLibro:
+      type: object
+      description: Respuesta paginada de Spring Data
+      properties:
+        content:
+          type: array
+          items:
+            $ref: "#/components/schemas/Libro"
+        number:
+          type: integer
+          description: Página actual (0-based)
+        size:
+          type: integer
+        totalElements:
+          type: integer
+        totalPages:
+          type: integer
+
+    UsuarioResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        email:
+          type: string
+          format: email
+        nombre:
+          type: string
+        roles:
+          type: array
+          items:
+            type: string
+          example: ["ROLE_USER"]
+
+paths:
+  /api/v1/auth/signin:
+    post:
+      tags: [Auth]
+      summary: Login y obtención de JWT
+      operationId: signin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SigninRequest"
+      responses:
+        "200":
+          description: JWT generado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JwtAuthenticationResponse"
+        "401":
+          description: Credenciales inválidas
+
+  /api/v1/libros:
+    get:
+      tags: [Libros]
+      summary: Listado paginado de libros
+      description: Requiere ROLE_USER o ROLE_ADMIN
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: page
+          schema: { type: integer, default: 0 }
+        - in: query
+          name: size
+          schema: { type: integer, default: 10 }
+      responses:
+        "200":
+          description: Página de libros
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PageLibro"
+        "403":
+          description: No autorizado
+
+    post:
+      tags: [Libros]
+      summary: Crear libro
+      description: Requiere ROLE_ADMIN
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/Libro" }
+      responses:
+        "200":
+          description: Libro creado
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Libro" }
+        "403":
+          description: No autorizado
+
+  /api/v1/libros/{id}:
+    get:
+      tags: [Libros]
+      summary: Obtener libro por ID
+      description: Requiere ROLE_USER o ROLE_ADMIN
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer, format: int64 }
+      responses:
+        "200":
+          description: Libro
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Libro" }
+        "404":
+          description: No encontrado
+        "403":
+          description: No autorizado
+
+    put:
+      tags: [Libros]
+      summary: Actualizar libro
+      description: Requiere ROLE_ADMIN
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer, format: int64 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/Libro" }
+      responses:
+        "200":
+          description: Libro actualizado
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Libro" }
+        "403":
+          description: No autorizado
+
+    delete:
+      tags: [Libros]
+      summary: Eliminar libro
+      description: Requiere ROLE_ADMIN
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer, format: int64 }
+      responses:
+        "200":
+          description: Eliminado
+        "403":
+          description: No autorizado
+
+  /api/v1/users:
+    get:
+      tags: [Users]
+      summary: Listar usuarios
+      description: Requiere ROLE_ADMIN
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Lista de usuarios
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/UsuarioResponse"
+        "403":
+          description: No autorizado
+
+  /api/v1/resources:
+    get:
+      tags: [Resources]
+      summary: Recurso protegido de ejemplo
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: OK
+          content:
+            text/plain:
+              schema:
+                type: string
+        "403":
+          description: No autorizado
+

@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Frontend educativo JWT</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+  <div class="container py-4">
+    <h1 class="mb-3">Login (JWT) - Demo</h1>
+
+    <div class="card mb-3">
+      <div class="card-body">
+        <div class="row g-2">
+          <div class="col-md-6">
+            <label class="form-label">API Base (sin /api/v1)</label>
+            <input id="api" class="form-control" value="http://localhost:8080">
+            <div class="form-text">Si el backend está en otro host: http://IP_DEL_BACKEND:8080</div>
+          </div>
+
+          <div class="col-md-6"></div>
+
+          <div class="col-md-6">
+            <label class="form-label">Email</label>
+            <input id="email" class="form-control" placeholder="alice.johnson@example.com">
+          </div>
+
+          <div class="col-md-6">
+            <label class="form-label">Password</label>
+            <input id="password" type="password" class="form-control" placeholder="password123">
+          </div>
+
+          <div class="col-12 d-flex gap-2 mt-2">
+            <button id="btnLogin" class="btn btn-primary">Login</button>
+            <button id="btnLibros" class="btn btn-outline-secondary" disabled>GET /libros</button>
+            <button id="btnLogout" class="btn btn-outline-danger">Logout</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <pre id="out" class="p-3 bg-white border rounded" style="min-height: 220px;"></pre>
+  </div>
+
+  <script src="./app.js"></script>
+</body>
+</html>

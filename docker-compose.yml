@@ -1,10 +1,9 @@
-# ./docker-compose.yml  (en la RAÍZ: SpringBootApp/docker-compose.yml)
+# SpringBootApp/docker-compose.yml
 name: springbootapp
 
 services:
   mysql:
     image: mysql:8.0
-    container_name: springbootapp-mysql
     restart: unless-stopped
     environment:
       MYSQL_ROOT_PASSWORD: root
@@ -29,31 +28,26 @@ services:
     build:
       context: ./src/Backend/API_SEGURITY_EXAMPLE
       dockerfile: Dockerfile
-    container_name: springbootapp-backend
     restart: unless-stopped
     depends_on:
       mysql:
         condition: service_healthy
     environment:
-      # Perfil demo
       SPRING_PROFILES_ACTIVE: demo
-
-      # Puerto interno del contenedor
       SERVER_PORT: "9091"
 
-      # Datasource (IMPORTANTE: host=mysql, no localhost)
+      # OJO: host=mysql (nombre del servicio), NO localhost
       SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/springbootapp?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
       SPRING_DATASOURCE_USERNAME: app
       SPRING_DATASOURCE_PASSWORD: app
 
-      # JPA (si quieres que cree/borre en demo)
+      # En demo
       SPRING_JPA_HIBERNATE_DDL_AUTO: create-drop
     ports:
       - "9091:9091"
 
   frontend:
     image: python:3.12-alpine
-    container_name: springbootapp-frontend
     restart: unless-stopped
     working_dir: /site
     volumes:
@@ -64,7 +58,6 @@ services:
 
   swagger-ui:
     image: swaggerapi/swagger-ui:latest
-    container_name: springbootapp-openapi-ui
     restart: unless-stopped
     environment:
       SWAGGER_JSON: /spec/openapi.yaml

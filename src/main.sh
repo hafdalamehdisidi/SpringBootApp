@@ -1,26 +1,11 @@
 #!/usr/bin/env bash
-set -eu
+set -e
 
-# ============================================
-# SpringBootApp - main.sh (Docker-first)
-# ============================================
-# Requisitos:
-#   - docker y docker compose
-#   - docker-compose.yml en la raíz del proyecto (../docker-compose.yml)
-#
-# Comandos:
-#   ./main.sh up-all        -> Levanta mysql + backend + frontend + swagger-ui
-#   ./main.sh down-all      -> Para todo
-#   ./main.sh reset         -> down -v + up --build
-#   ./main.sh status        -> Estado
-#   ./main.sh logs          -> logs -f (todos)
-#   ./main.sh logs backend  -> logs -f del servicio
-#
-# Puertos por defecto:
-#   backend=9091, frontend=8081, swagger-ui=8083, mysql=3306
-# ============================================
+# pipefail solo si es bash
+if [ -n "${BASH_VERSION:-}" ]; then
+  set -o pipefail
+fi
 
-# --- Colors ---
 GREEN="\033[0;32m"; YELLOW="\033[0;33m"; RED="\033[0;31m"; BLUE="\033[0;34m"; RESET="\033[0m"
 say() { echo -e "${BLUE}==>${RESET} $*"; }
 ok()  { echo -e "${GREEN}✔${RESET} $*"; }
@@ -31,107 +16,119 @@ need_cmd() {
   command -v "$1" >/dev/null 2>&1 || { err "No existe el comando: $1"; exit 1; }
 }
 
-# --- Paths ---
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"         # .../SpringBootApp/src
-PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"         # .../SpringBootApp
-COMPOSE_FILE="$PROJECT_DIR/docker-compose.yml"
+# -----------------------------
+# Detectar raíz del proyecto
+# -----------------------------
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# Defaults (solo informativos; los puertos reales los define docker-compose.yml)
-BACKEND_PORT_DEFAULT="9091"
-FRONTEND_PORT_DEFAULT="8081"
-SWAGGER_PORT_DEFAULT="8083"
-MYSQL_PORT_DEFAULT="3306"
+if [[ -f "$SCRIPT_DIR/docker-compose.yml" ]]; then
+  ROOT_DIR="$SCRIPT_DIR"
+elif [[ -f "$SCRIPT_DIR/../docker-compose.yml" ]]; then
+  ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+else
+  err "No encuentro docker-compose.yml ni en:"
+  err "  $SCRIPT_DIR/docker-compose.yml"
+  err "  $SCRIPT_DIR/../docker-compose.yml"
+  exit 1
+fi
 
-compose() {
-  need_cmd docker
-  # docker compose (plugin) o docker-compose (legacy)
-  if docker compose version >/dev/null 2>&1; then
-    docker compose -f "$COMPOSE_FILE" "$@"
-  else
-    need_cmd docker-compose
-    docker-compose -f "$COMPOSE_FILE" "$@"
-  fi
-}
+COMPOSE_FILE="$ROOT_DIR/docker-compose.yml"
+cd_root() { cd "$ROOT_DIR"; }
 
-check_compose_file() {
-  if [ ! -f "$COMPOSE_FILE" ]; then
-    err "No encuentro docker-compose.yml en: $COMPOSE_FILE"
-    err "Solución: crea el archivo en la raíz del proyecto (SpringBootApp/docker-compose.yml)."
-    exit 1
-  fi
-}
-
-urls() {
-  echo "  Backend   : http://localhost:${BACKEND_PORT_DEFAULT}"
-  echo "  Frontend  : http://localhost:${FRONTEND_PORT_DEFAULT}"
-  echo "  Swagger UI: http://localhost:${SWAGGER_PORT_DEFAULT}"
-  echo "  MySQL     : localhost:${MYSQL_PORT_DEFAULT}"
-}
-
-up_all() {
-  check_compose_file
-  say "Levantando TODO con Docker Compose..."
-  say "Puertos esperados:"
-  urls
-  echo
-
-  compose up -d --build
-
-  ok "Listo."
-  urls
-  echo
-  say "Si algo falla, mira logs:"
-  echo "  ./main.sh logs"
-  echo "  ./main.sh logs backend"
-  echo "  ./main.sh logs mysql"
-}
-
-down_all() {
-  check_compose_file
-  say "Parando TODO..."
-  compose down
-  ok "Todo detenido."
-}
-
-reset_all() {
-  check_compose_file
-  warn "Esto hace down -v (borra volumen de MySQL)."
-  say "Reseteando TODO..."
-  compose down -v
-  compose up -d --build
-  ok "Reset completado."
-  urls
-}
-
-status() {
-  check_compose_file
-  say "Proyecto:"
-  echo "  SRC       : $SCRIPT_DIR"
-  echo "  ROOT      : $PROJECT_DIR"
-  echo "  COMPOSE   : $COMPOSE_FILE"
-  echo
-  say "Puertos esperados:"
-  urls
-  echo
-  say "Estado docker compose:"
-  compose ps || true
-}
-
-logs_all() {
-  check_compose_file
-  say "Logs (Ctrl+C para salir)"
-  compose logs -f --tail=200
-}
-
-logs_service() {
-  check_compose_file
-  svc="${1:-}"
-  if [ -z "$svc" ]; then
-    logs_all
+# -----------------------------
+# Detectar comando compose disponible
+# -----------------------------
+detect_compose() {
+  # 1) docker compose (v2)
+  if command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; then
+    echo "docker compose"
     return 0
   fi
-  say "Logs de servicio: $svc (Ctrl+C para salir)"
-  compose logs -f --tail=200 "$svc"
+
+  # 2) docker-compose (v1)
+  if command -v docker-compose >/dev/null 2>&1; then
+    echo "docker-compose"
+    return 0
+  fi
+
+  # 3) podman-compose (por si acaso)
+  if command -v podman-compose >/dev/null 2>&1; then
+    echo "podman-compose"
+    return 0
+  fi
+
+  return 1
+}
+
+COMPOSE_BIN="$(detect_compose || true)"
+if [[ -z "${COMPOSE_BIN:-}" ]]; then
+  err "No tienes Docker Compose instalado."
+  err "Instala UNA de estas opciones:"
+  err "  - Docker Compose v2: 'docker compose'"
+  err "  - Docker Compose v1: 'docker-compose'"
+  exit 1
+fi
+
+# Wrapper para ejecutar compose siempre desde la raíz
+compose() {
+  cd_root
+  # shellcheck disable=SC2086
+  $COMPOSE_BIN -f "$COMPOSE_FILE" "$@"
+}
+
+# -----------------------------
+# Comandos
+# -----------------------------
+cmd_up_all() {
+  say "Levantando TODO con Compose -> ($COMPOSE_BIN)"
+  say "Puertos esperados:"
+  echo "  Backend   : http://localhost:9091"
+  echo "  Frontend  : http://localhost:8081"
+  echo "  Swagger UI: http://localhost:8083"
+  echo "  MySQL     : localhost:3306"
+  echo
+
+  # Baja primero para evitar conflictos
+  compose down --remove-orphans >/dev/null 2>&1 || true
+
+  compose up -d --build
+
+  ok "Listo. Comprueba:"
+  ok "  Frontend  : http://localhost:8081"
+  ok "  Backend   : http://localhost:9091"
+  ok "  Swagger UI: http://localhost:8083"
+}
+
+cmd_down_all() {
+  say "Parando todo -> ($COMPOSE_BIN down)"
+  compose down --remove-orphans
+  ok "Todo parado"
+}
+
+cmd_reset() {
+  warn "RESET: borra volumen MySQL (pierdes datos) y vuelve a levantar."
+  compose down -v --remove-orphans
+  compose up -d --build
+  ok "Reset completo"
+}
+
+cmd_logs() {
+  local svc="${1:-}"
+  if [[ -z "$svc" ]]; then
+    say "Logs (Ctrl+C para salir)"
+    compose logs -f --tail=200
+  else
+    say "Logs de servicio: $svc (Ctrl+C para salir)"
+    compose logs -f --tail=200 "$svc"
+  fi
+}
+
+cmd_status() {
+  say "ROOT: $ROOT_DIR"
+  say "COMPOSE: $COMPOSE_BIN"
+  say "COMPOSE_FILE: $COMPOSE_FILE"
+  echo
+  compose ps
 }
 
 help_menu() {
@@ -139,8 +136,8 @@ help_menu() {
 Uso: ./main.sh <comando>
 
 Todo:
-  up-all            Levanta mysql + backend + frontend + swagger-ui (docker compose up -d --build)
-  down-all          Para todo (docker compose down)
+  up-all            Levanta mysql + backend + frontend + swagger-ui (compose up -d --build)
+  down-all          Para todo (compose down)
   reset             Down -v y vuelve a levantar (borra datos MySQL)
   status            Estado y rutas
   logs              Logs de todos
@@ -156,15 +153,15 @@ EOF
 }
 
 main() {
-  cmd="${1:-help}"
+  local cmd="${1:-help}"
   shift || true
 
   case "$cmd" in
-    up-all)     up_all ;;
-    down-all)   down_all ;;
-    reset)      reset_all ;;
-    status)     status ;;
-    logs)       logs_service "${1:-}" ;;
+    up-all)     cmd_up_all ;;
+    down-all)   cmd_down_all ;;
+    reset)      cmd_reset ;;
+    status)     cmd_status ;;
+    logs)       cmd_logs "${1:-}" ;;
     help|--help|-h|"") help_menu ;;
     *)
       err "Comando desconocido: $cmd"

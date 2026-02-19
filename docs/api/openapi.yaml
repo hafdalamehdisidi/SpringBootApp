@@ -1,9 +1,17 @@
 openapi: 3.0.3
 info:
   title: API Security Example (DWES)
-  version: "1.0.0"
+  version: "1.2.0"
   description: >
     API educativa con Spring Boot, JWT y control de acceso por roles (ROLE_USER, ROLE_ADMIN).
+    Spec alineado con los DTOs reales del backend:
+    - SignUpRequest       : firstName, lastName, email, password
+    - SigninRequest       : email, password
+    - UsuarioResponse    : firstName, lastName, email, rol (string singular)
+    - ErrorDetailsResponse: timestamp, message, details
+    - POST /auth/signup  -> 200 + JWT
+    - POST /libros       -> 200 + Libro
+    - DELETE /libros/{id}-> 200 sin body
 
 servers:
   - url: http://localhost:9091
@@ -11,10 +19,17 @@ servers:
 
 tags:
   - name: Auth
+    description: Autenticación y registro de usuarios
   - name: Libros
+    description: CRUD de libros — lectura requiere USER/ADMIN, escritura requiere ADMIN
   - name: Users
+    description: Gestión/listado de usuarios (solo ADMIN)
   - name: Resources
+    description: Recurso protegido de ejemplo
 
+# ──────────────────────────────────────────────────────────────────────────────
+# COMPONENTS
+# ──────────────────────────────────────────────────────────────────────────────
 components:
   securitySchemes:
     bearerAuth:
@@ -23,8 +38,31 @@ components:
       bearerFormat: JWT
 
   schemas:
+
+    # ── Error ──────────────────────────────────────────────────────────────────
+    # Refleja exactamente: ErrorDetailsResponse(Date timestamp, String message, String details)
+    ErrorDetailsResponse:
+      type: object
+      required: [timestamp, message, details]
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+          description: Fecha y hora del error (java.util.Date serializado como ISO-8601)
+          example: "2026-02-19T18:20:30.123+00:00"
+        message:
+          type: string
+          description: Descripción corta del error
+          example: "Unauthorized"
+        details:
+          type: string
+          description: Información adicional, normalmente la URI de la petición
+          example: "uri=/api/v1/libros"
+
+    # ── Auth ───────────────────────────────────────────────────────────────────
     SigninRequest:
       type: object
+      description: Credenciales para obtener un JWT.
       required: [email, password]
       properties:
         email:
@@ -35,68 +73,175 @@ components:
           type: string
           example: password123
 
+    SignUpRequest:
+      type: object
+      description: Datos de registro de un nuevo usuario. El backend asigna ROLE_USER por defecto.
+      required: [firstName, lastName, email, password]
+      properties:
+        firstName:
+          type: string
+          example: Alice
+        lastName:
+          type: string
+          example: Johnson
+        email:
+          type: string
+          format: email
+          example: alice.johnson@example.com
+        password:
+          type: string
+          example: password123
+
     JwtAuthenticationResponse:
       type: object
+      description: Respuesta devuelta en signin y signup con el JWT generado.
+      required: [token]
       properties:
         token:
           type: string
           description: JWT Bearer token
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhbGljZS5qb2huc29uQGV4YW1wbGUuY29tIiwicm9sZXMiOlsiUk9MRV9VU0VSIl0sImlhdCI6MTcwODM2OTQwMCwiZXhwIjoxNzA4MzczMDAwfQ.signature"
 
+    # ── Libros ─────────────────────────────────────────────────────────────────
     Libro:
       type: object
+      description: Libro persistido devuelto por el servidor. El id lo asigna el servidor.
+      required: [id, titulo, autor, isbn]
       properties:
         id:
           type: integer
           format: int64
+          readOnly: true
+          example: 1
         titulo:
           type: string
+          example: Clean Code
         autor:
           type: string
-        anioPublicacion:
+          example: Robert C. Martin
+        isbn:
+          type: string
+          description: ISBN-10 (puede terminar en X) o ISBN-13
+          example: "9780132350884"
+
+    LibroWriteRequest:
+      type: object
+      description: >
+        Cuerpo para crear (POST) o actualizar (PUT) un libro.
+        El id no se incluye; en PUT se obtiene del path.
+      required: [titulo, autor, isbn]
+      properties:
+        titulo:
+          type: string
+          example: Clean Code
+        autor:
+          type: string
+          example: Robert C. Martin
+        isbn:
+          type: string
+          example: "9780132350884"
+
+    # ── Spring Data Page ───────────────────────────────────────────────────────
+    SortObject:
+      type: object
+      properties:
+        empty:
+          type: boolean
+        sorted:
+          type: boolean
+        unsorted:
+          type: boolean
+
+    PageableObject:
+      type: object
+      properties:
+        pageNumber:
           type: integer
-          format: int32
+        pageSize:
+          type: integer
+        offset:
+          type: integer
+          format: int64
+        paged:
+          type: boolean
+        unpaged:
+          type: boolean
+        sort:
+          $ref: "#/components/schemas/SortObject"
 
     PageLibro:
       type: object
-      description: Respuesta paginada de Spring Data
+      description: Respuesta paginada de Spring Data (Page<Libro>).
+      required: [content, number, size, totalElements, totalPages, first, last, empty]
       properties:
         content:
           type: array
           items:
             $ref: "#/components/schemas/Libro"
+        pageable:
+          $ref: "#/components/schemas/PageableObject"
+        sort:
+          $ref: "#/components/schemas/SortObject"
         number:
           type: integer
           description: Página actual (0-based)
+          example: 0
         size:
           type: integer
+          example: 10
+        numberOfElements:
+          type: integer
+          example: 10
         totalElements:
           type: integer
+          format: int64
+          example: 42
         totalPages:
           type: integer
+          example: 5
+        first:
+          type: boolean
+          example: true
+        last:
+          type: boolean
+          example: false
+        empty:
+          type: boolean
+          example: false
 
+    # ── Users ──────────────────────────────────────────────────────────────────
+    # Refleja exactamente: UsuarioResponse(String firstName, String lastName, String email, String rol)
     UsuarioResponse:
       type: object
+      required: [firstName, lastName, email, rol]
       properties:
-        id:
-          type: integer
-          format: int64
+        firstName:
+          type: string
+          example: Alice
+        lastName:
+          type: string
+          example: Johnson
         email:
           type: string
           format: email
-        nombre:
+          example: alice.johnson@example.com
+        rol:
           type: string
-        roles:
-          type: array
-          items:
-            type: string
-          example: ["ROLE_USER"]
+          description: Rol asignado al usuario (campo singular string, no array)
+          example: ROLE_USER
 
+# ──────────────────────────────────────────────────────────────────────────────
+# PATHS
+# ──────────────────────────────────────────────────────────────────────────────
 paths:
+
+  # ── AUTH ───────────────────────────────────────────────────────────────────
   /api/v1/auth/signin:
     post:
       tags: [Auth]
-      summary: Login y obtención de JWT
+      summary: Login — obtención de JWT
       operationId: signin
+      security: []
       requestBody:
         required: true
         content:
@@ -105,28 +250,78 @@ paths:
               $ref: "#/components/schemas/SigninRequest"
       responses:
         "200":
-          description: JWT generado
+          description: JWT generado correctamente
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/JwtAuthenticationResponse"
+        "400":
+          description: JSON malformado o campos requeridos ausentes
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorDetailsResponse"
         "401":
-          description: Credenciales inválidas
+          description: Credenciales incorrectas
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorDetailsResponse"
 
+  /api/v1/auth/signup:
+    post:
+      tags: [Auth]
+      summary: Registro de nuevo usuario
+      operationId: signup
+      description: >
+        Crea un usuario con ROLE_USER y devuelve un JWT directamente.
+        El email debe ser único; si ya existe se devuelve 400.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SignUpRequest"
+      responses:
+        "200":
+          description: Usuario registrado — devuelve JWT (comportamiento actual del backend)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JwtAuthenticationResponse"
+        "400":
+          description: >
+            Petición inválida: JSON malformado, campos requeridos ausentes o email ya registrado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorDetailsResponse"
+
+  # ── LIBROS (colección) ─────────────────────────────────────────────────────
   /api/v1/libros:
     get:
       tags: [Libros]
       summary: Listado paginado de libros
-      description: Requiere ROLE_USER o ROLE_ADMIN
+      operationId: listLibros
+      description: Requiere ROLE_USER o ROLE_ADMIN.
       security:
         - bearerAuth: []
       parameters:
         - in: query
           name: page
-          schema: { type: integer, default: 0 }
+          description: Número de página (0-based)
+          schema:
+            type: integer
+            default: 0
+            minimum: 0
         - in: query
           name: size
-          schema: { type: integer, default: 10 }
+          description: Elementos por página.
+          schema:
+            type: integer
+            default: 10
+            minimum: 1
       responses:
         "200":
           description: Página de libros
@@ -134,99 +329,185 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/PageLibro"
+        "401":
+          description: Token ausente o expirado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorDetailsResponse"
         "403":
-          description: No autorizado
+          description: Sin permisos suficientes
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorDetailsResponse"
 
     post:
       tags: [Libros]
       summary: Crear libro
-      description: Requiere ROLE_ADMIN
+      operationId: createLibro
+      description: Requiere ROLE_ADMIN.
       security:
         - bearerAuth: []
       requestBody:
         required: true
         content:
           application/json:
-            schema: { $ref: "#/components/schemas/Libro" }
+            schema:
+              $ref: "#/components/schemas/LibroWriteRequest"
       responses:
         "200":
-          description: Libro creado
+          description: Libro creado (comportamiento actual del backend)
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/Libro" }
+              schema:
+                $ref: "#/components/schemas/Libro"
+        "400":
+          description: Validación fallida
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorDetailsResponse"
+        "401":
+          description: Token ausente o expirado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorDetailsResponse"
         "403":
-          description: No autorizado
+          description: Sin permisos — se requiere ROLE_ADMIN
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorDetailsResponse"
 
+  # ── LIBROS (recurso individual) ────────────────────────────────────────────
   /api/v1/libros/{id}:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        description: ID del libro
+        schema:
+          type: integer
+          format: int64
+          minimum: 1
+          example: 1
+
     get:
       tags: [Libros]
       summary: Obtener libro por ID
-      description: Requiere ROLE_USER o ROLE_ADMIN
+      operationId: getLibroById
+      description: Requiere ROLE_USER o ROLE_ADMIN.
       security:
         - bearerAuth: []
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema: { type: integer, format: int64 }
       responses:
         "200":
-          description: Libro
+          description: Libro encontrado
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/Libro" }
-        "404":
-          description: No encontrado
+              schema:
+                $ref: "#/components/schemas/Libro"
+        "401":
+          description: Token ausente o expirado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorDetailsResponse"
         "403":
-          description: No autorizado
+          description: Sin permisos suficientes
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorDetailsResponse"
+        "404":
+          description: Libro no encontrado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorDetailsResponse"
 
     put:
       tags: [Libros]
       summary: Actualizar libro
-      description: Requiere ROLE_ADMIN
+      operationId: updateLibro
+      description: Requiere ROLE_ADMIN. Reemplaza todos los campos del libro.
       security:
         - bearerAuth: []
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema: { type: integer, format: int64 }
       requestBody:
         required: true
         content:
           application/json:
-            schema: { $ref: "#/components/schemas/Libro" }
+            schema:
+              $ref: "#/components/schemas/LibroWriteRequest"
       responses:
         "200":
           description: Libro actualizado
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/Libro" }
+              schema:
+                $ref: "#/components/schemas/Libro"
+        "400":
+          description: Validación fallida
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorDetailsResponse"
+        "401":
+          description: Token ausente o expirado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorDetailsResponse"
         "403":
-          description: No autorizado
+          description: Sin permisos — se requiere ROLE_ADMIN
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorDetailsResponse"
+        "404":
+          description: Libro no encontrado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorDetailsResponse"
 
     delete:
       tags: [Libros]
       summary: Eliminar libro
-      description: Requiere ROLE_ADMIN
+      operationId: deleteLibro
+      description: Requiere ROLE_ADMIN.
       security:
         - bearerAuth: []
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema: { type: integer, format: int64 }
       responses:
         "200":
-          description: Eliminado
+          description: Libro eliminado (comportamiento actual del backend — sin body)
+        "401":
+          description: Token ausente o expirado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorDetailsResponse"
         "403":
-          description: No autorizado
+          description: Sin permisos — se requiere ROLE_ADMIN
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorDetailsResponse"
+        "404":
+          description: Libro no encontrado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorDetailsResponse"
 
+  # ── USERS ──────────────────────────────────────────────────────────────────
   /api/v1/users:
     get:
       tags: [Users]
-      summary: Listar usuarios
-      description: Requiere ROLE_ADMIN
+      summary: Listar todos los usuarios
+      operationId: listUsers
+      description: Requiere ROLE_ADMIN.
       security:
         - bearerAuth: []
       responses:
@@ -238,22 +519,45 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/UsuarioResponse"
+        "401":
+          description: Token ausente o expirado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorDetailsResponse"
         "403":
-          description: No autorizado
+          description: Sin permisos — se requiere ROLE_ADMIN
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorDetailsResponse"
 
+  # ── RESOURCES ──────────────────────────────────────────────────────────────
   /api/v1/resources:
     get:
       tags: [Resources]
       summary: Recurso protegido de ejemplo
+      operationId: getProtectedResource
+      description: Endpoint de ejemplo para verificar autenticación. Requiere token válido.
       security:
         - bearerAuth: []
       responses:
         "200":
-          description: OK
+          description: Recurso devuelto correctamente
           content:
             text/plain:
               schema:
                 type: string
+                example: "Recurso protegido OK"
+        "401":
+          description: Token ausente o expirado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorDetailsResponse"
         "403":
-          description: No autorizado
-
+          description: Sin permisos suficientes
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorDetailsResponse"

@@ -96,7 +96,7 @@ print_access_urls() {
 # Auto-fetch del backend (GitHub)
 # -----------------------------
 BACKEND_REPO_URL="https://github.com/profeInformatica101/API_SEGURITY_EXAMPLE.git"
-BACKEND_BRANCH="actualizacion_version"
+BACKEND_BRANCH="agregado_cors"
 BACKEND_DIR="$ROOT_DIR/src/Backend/API_SEGURITY_EXAMPLE"
 
 ensure_backend_repo() {

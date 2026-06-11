@@ -20,6 +20,7 @@
             <th>Nombre</th>
             <th>Precio</th>
             <th>Categoría</th>
+            <th>Acciones</th>
         </tr>
         </thead>
         <tbody>
@@ -27,6 +28,10 @@
             <td th:text="${producto.nombre}">Nombre (prototipo)</td>
             <td th:text="${producto.precio}">Precio (prototipo)</td>
             <td th:text="${producto.categoria}">Categoría (prototipo)</td>
+            <td>
+                <a class="btn btn-sm btn-outline-primary"
+                   th:href="@{/productos/{id}(id=${producto.id})}">Ver detalle</a>
+            </td>
         </tr>
         </tbody>
     </table>

@@ -5,14 +5,24 @@ package com.optativa.thymeleaf.modelo;
  */
 public class Producto {
 
+    private Long id;
     private String nombre;
     private double precio;
     private String categoria;
 
-    public Producto(String nombre, double precio, String categoria) {
+    public Producto(Long id, String nombre, double precio, String categoria) {
+        this.id = id;
         this.nombre = nombre;
         this.precio = precio;
         this.categoria = categoria;
+    }
+
+    public Long getId() {
+        return id;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
     }
 
     public String getNombre() {

@@ -9,9 +9,11 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * @author Hafdala Mehdi Sidi
@@ -30,6 +32,17 @@ public class ProductoControlador {
     @GetMapping("/productos")
     public String listarProductos(Model modelo) {
         modelo.addAttribute("listaProductos", listaProductos);
+        return "productos";
+    }
+
+    @GetMapping("/productos/buscar")
+    public String buscarProductos(@RequestParam String query, Model modelo) {
+        List<Producto> resultados = listaProductos.stream()
+                .filter(p -> p.getNombre().toLowerCase().contains(query.toLowerCase()))
+                .collect(Collectors.toList());
+
+        modelo.addAttribute("listaProductos", resultados);
+        modelo.addAttribute("query", query);
         return "productos";
     }
 

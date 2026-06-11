@@ -14,8 +14,19 @@
 
     <a class="btn btn-success mb-3" th:href="@{/productos/nuevo}">Nuevo producto</a>
 
+    <form th:action="@{/productos/buscar}" th:method="get" class="row g-2 mb-3">
+        <div class="col-auto">
+            <input type="text" name="query" class="form-control" placeholder="Buscar por nombre"
+                   th:value="${query}" />
+        </div>
+        <div class="col-auto">
+            <button type="submit" class="btn btn-primary">Buscar</button>
+        </div>
+    </form>
+
     <div class="alert alert-warning" th:if="${listaProductos.size() == 0}">
-        No hay productos disponibles.
+        <span th:if="${query != null}">No se encontraron productos para "<span th:text="${query}"></span>".</span>
+        <span th:if="${query == null}">No hay productos disponibles.</span>
     </div>
 
     <div th:unless="${listaProductos.isEmpty()}">

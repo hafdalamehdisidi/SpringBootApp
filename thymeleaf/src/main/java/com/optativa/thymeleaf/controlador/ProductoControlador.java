@@ -4,7 +4,9 @@ import com.optativa.thymeleaf.modelo.Producto;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -38,5 +40,18 @@ public class ProductoControlador {
 
         modelo.addAttribute("producto", producto);
         return "detalleProducto";
+    }
+
+    @GetMapping("/productos/nuevo")
+    public String mostrarFormularioAlta(Model modelo) {
+        modelo.addAttribute("producto", new Producto());
+        return "formularioProducto";
+    }
+
+    @PostMapping("/productos/nuevo")
+    public String darDeAltaProducto(@ModelAttribute Producto producto) {
+        producto.setId((long) (listaProductos.size() + 1));
+        listaProductos.add(producto);
+        return "redirect:/productos";
     }
 }

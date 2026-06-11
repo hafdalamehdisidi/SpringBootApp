@@ -10,6 +10,9 @@ public class Producto {
     private double precio;
     private String categoria;
 
+    public Producto() {
+    }
+
     public Producto(Long id, String nombre, double precio, String categoria) {
         this.id = id;
         this.nombre = nombre;

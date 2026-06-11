@@ -1,8 +1,10 @@
 package com.optativa.thymeleaf.controlador;
 
 import com.optativa.thymeleaf.modelo.Producto;
+import jakarta.validation.Valid;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
+import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -49,7 +51,11 @@ public class ProductoControlador {
     }
 
     @PostMapping("/productos/nuevo")
-    public String darDeAltaProducto(@ModelAttribute Producto producto) {
+    public String darDeAltaProducto(@Valid @ModelAttribute("producto") Producto producto, BindingResult bindingResult) {
+        if (bindingResult.hasErrors()) {
+            return "formularioProducto";
+        }
+
         producto.setId((long) (listaProductos.size() + 1));
         listaProductos.add(producto);
         return "redirect:/productos";

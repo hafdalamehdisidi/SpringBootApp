@@ -1,13 +1,22 @@
 package com.optativa.thymeleaf.modelo;
 
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Positive;
+
 /**
  * @author Hafdala Mehdi Sidi
  */
 public class Producto {
 
     private Long id;
+
+    @NotBlank(message = "El nombre es obligatorio")
     private String nombre;
+
+    @Positive(message = "El precio debe ser mayor que 0")
     private double precio;
+
+    @NotBlank(message = "La categoría es obligatoria")
     private String categoria;
 
     public Producto() {
